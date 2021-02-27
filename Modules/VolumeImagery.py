@@ -18,16 +18,19 @@ __all__ = ['from_image_stack',
 
 import os
 
+import math
+
 import ants
 import numpy
 
 import skimage
+import skimage.measure
 
 
 def from_image_stack(image_stack, image_spacing=(1.,1.), image_height=1., axis=2, spacing=None, normalise_values=False, binary_mask=False):
     """
     Converts a stack of 2-dimensional image rasters into a single 3-dimensional
-	image raster.
+    image raster.
     
     Parameters
     ----------
@@ -125,7 +128,7 @@ def from_image_stack(image_stack, image_spacing=(1.,1.), image_height=1., axis=2
 def to_image_stack(volume_image, axis=2):
     """
     Converts a 3-dimensional image raster into a stack of 2-dimensional image
-	rasters.
+    rasters.
 
     Parameters
     ----------
@@ -371,3 +374,122 @@ def mask_optimisation(mask, axis=None, dilation_erosion_radius=None, min_connect
                     
                     
     return __mask.astype('uint8')
+
+
+def find_mask_contours(mask, axis=None, segment_length=0., use_voxels=False, include_holes=True):
+    """
+    ********************************************************************************
+    Finds contours of the connected components of a mask image.
+    
+    Parameters
+    ----------
+    mask : ants.core.ants_image.ANTsImage
+        3-dimensional mask image.
+    axis : int
+        Axis along which to extract the contours. Default is None.
+    segment_length : float
+        Intended length of the line segments along the contour. Default is 0.
+    use_voxels : bool
+        Interpret the values of the segment length in units of voxels. Default is
+        False.
+    include_holes : bool
+        Include contours of holes in connected components. Default is True.
+    
+    Returns
+    -------
+    _ : list of list of (n,2) ndarray
+        Contours of the boundaries of the connected components.
+    """
+    
+    if not type(mask) is ants.core.ants_image.ANTsImage:
+        raise TypeError('`mask` is expected to be of type ants.core.ants_image.ANTsImage.')
+    
+    if not mask.dimension in [2, 3]:
+        raise ValueError('`mask` is expected to be of dimension 2 or 3.')
+    
+
+    def ndarray_slice(dimensions, axis, index):
+        _slice = [slice(None)] * dimensions
+    
+        if axis < dimensions:
+            _slice[axis] = index
+        
+        return tuple(_slice)
+    
+    def drop(list, index):
+        list.pop(index)
+        
+        return list
+    
+    
+    __mask = mask.clone()
+    __mask = __mask.astype('float32')
+    
+    if __mask.dimension == 3:
+        if axis is None:
+            raise ValueError('Contours cannot be extracted with axis set to None.')
+        
+        
+        contours = [None] * mask.shape[axis]
+        
+        
+        for i in range(__mask.shape[axis]):
+            
+            __slice = ndarray_slice(3, axis, i)
+            
+            __mask_slice = ants.from_numpy(__mask[__slice], spacing=drop(list(mask.spacing), axis))
+            contours[i] = find_mask_contours(__mask_slice, segment_length=segment_length, use_voxels=use_voxels, include_holes=include_holes)
+        
+        
+    elif __mask.dimension == 2:
+        
+        def component_contour(regionprop, inc_holes=include_holes):
+        
+            if inc_holes:
+                image = regionprop.image
+            else:
+                image = regionprop.filled_image
+            
+            embedded_image = numpy.zeros(tuple(numpy.array(image.shape) + 2), dtype='uint8')
+            embedded_image[1:image.shape[0]+1,1:image.shape[1]+1] = image
+            
+            contour = skimage.measure.find_contours(embedded_image, level=0.5)
+            
+            i, j, _, _ = regionprop.bbox
+            
+            contour = [_ - 1 + numpy.array([i,j]) for _ in contour]
+            
+            return contour
+
+            
+        contours = []
+            
+        for regionprop in skimage.measure.regionprops(skimage.measure.label(__mask.view())):
+            contours += component_contour(regionprop)
+            
+        if not (segment_length is None or segment_length == 0):
+            
+            w = numpy.array(__mask.spacing)
+            if use_voxels:
+                w[:] = 1.
+            norm = lambda x : math.sqrt(numpy.sum((w * x)**2))
+            
+            for i in range(len(contours)):
+                
+                n = 0
+                while n < len(contours[i]):
+                    __ix = []
+                    for dn in range(1, len(contours[i])):
+                        if n + dn == len(contours[i]) or norm(contours[i][n,:] - contours[i][n + dn,:]) > segment_length:
+                            __ix = list(range(n + 1, n + dn - 1))
+                            break
+                    
+                    if len(__ix) > 0:
+                        contours[i] = numpy.delete(contours[i], __ix, axis=0)
+                    
+                    n += 1
+                
+                if not numpy.all(contours[i][0,:] == contours[i][-1,:]):
+                    contours[i] = numpy.append(contours[i], contours[i][[0],:], axis=0)
+    
+    return contours
