@@ -26,8 +26,8 @@ import skimage
 
 def from_image_stack(image_stack, image_spacing=(1.,1.), image_height=1., axis=2, spacing=None, normalise_values=False, binary_mask=False):
     """
-    Convert a stack of 2-dimensional image rasters into a single 3-dimensional image
-    raster.
+    Converts a stack of 2-dimensional image rasters into a single 3-dimensional
+	image raster.
     
     Parameters
     ----------
@@ -124,7 +124,8 @@ def from_image_stack(image_stack, image_spacing=(1.,1.), image_height=1., axis=2
 
 def to_image_stack(volume_image, axis=2):
     """
-    Convert a 3-dimensional image raster into a stack of 2-dimensional image rasters.
+    Converts a 3-dimensional image raster into a stack of 2-dimensional image
+	rasters.
 
     Parameters
     ----------
@@ -169,7 +170,7 @@ def to_image_stack(volume_image, axis=2):
 
 def interpolate_image_stack(image_stack, stack_spacing, target_spacing):
     """
-    Linearly Interpolates a non-uniformly spaced stack of 2-dimensional image
+    Linearly interpolates a non-uniformly spaced stack of 2-dimensional image
     rasters and yields a uniformly spaced stack.
 
     Parameters
@@ -228,7 +229,7 @@ def interpolate_image_stack(image_stack, stack_spacing, target_spacing):
 
 def load(path, pixeltype='float'):
     """
-    Load a 3-dimensional image raster.
+    Loads a 3-dimensional image raster.
 
     Parameters
     ----------
@@ -284,7 +285,7 @@ def save(volume_image, output_path, override=False):
 
 def mask_optimisation(mask, axis=None, dilation_erosion_radius=None, min_connected_component_size=None):
     """
-    Optimise mask images by dilation-erosion and the discrimination of small
+    Optimises mask images by dilation-erosion and the discrimination of small
     connected components.
 
     Parameters
