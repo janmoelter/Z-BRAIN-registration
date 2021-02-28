@@ -8,6 +8,9 @@ import numpy
 import io
 import json
 
+import matplotlib
+import matplotlib.pyplot as plt
+
 import base64
 
 import tifffile
@@ -26,9 +29,18 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
         raise FileNotFoundError('Region masks directory `region-masks` does not exist in moving image data directory.')
     if not os.path.isfile(os.path.join(moving_data_directory, 'region-masks', 'content.json')):
         raise FileNotFoundError('Region masks content file does not exist.')
-        
-    if not export_format.lower() in ['labelme']:
+    
+    export_format = export_format.lower()
+    if not export_format in ['image', 'labelme']:
         raise ValueError('Export format ''{}'' is not supported.'.format(export_format))
+        
+    #if not ((type(export_format) is list and all([type(_) is str for _ in export_format])) or type(export_format) is str):
+    #    raise TypeError('`export_format` is expected to either be of type list and to contain elements of type str or to be of type str.')
+    #
+    #export_format = [_.lower() for _ in list(export_format)]
+    #    
+    #if not all([_ in ['image', 'labelme'] for _ in export_format]):
+    #    raise ValueError('Export format ''{}'' is not supported.'.format(export_format))
     
     
     
@@ -44,12 +56,16 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
     
     find_mask_contours__kwargs = {
         'axis': axis,
-        'segment_length': 10,
+        'segment_length': 0,
         'use_voxels': False,
         'include_holes': True,
     }
     
-    if export_format.lower() == 'labelme':
+    if export_format == 'image':
+        find_mask_contours__kwargs['segment_length'] = 5
+    
+    if export_format == 'labelme':
+        find_mask_contours__kwargs['segment_length'] = 10
         find_mask_contours__kwargs['include_holes'] = False
     
     
@@ -80,12 +96,14 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
         if __RH_mask_image is None:
             region_contours[mask] = VolumeImagery.find_mask_contours(__mask_image, **find_mask_contours__kwargs)
         else:
+            region_contours[mask] = {}
+            
             __mask_image_RH = __mask_image.new_image_like(numpy.bitwise_and(__RH_mask_image.view(), __mask_image.view()))
-            region_contours['{} (right)'.format(mask)] = VolumeImagery.find_mask_contours(__mask_image_RH, **find_mask_contours__kwargs)
+            region_contours[mask]['right'] = VolumeImagery.find_mask_contours(__mask_image_RH, **find_mask_contours__kwargs)
             del __mask_image_RH
             
             __mask_image_LH = __mask_image.new_image_like(numpy.bitwise_and(1 - __RH_mask_image.view(), __mask_image.view()))
-            region_contours['{} (left)'.format(mask)] = VolumeImagery.find_mask_contours(__mask_image_LH, **find_mask_contours__kwargs)
+            region_contours[mask]['left'] = VolumeImagery.find_mask_contours(__mask_image_LH, **find_mask_contours__kwargs)
             del __mask_image_LH
             
         del __mask_image
@@ -107,11 +125,20 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
     
     if verbose is not None and verbose:
         print('=== {} ==='.format('Export segmentation images'), file=sys.stdout)
+    
+    if export_format.lower() == 'image':
+        if not os.path.splitext(output_file_format)[1].upper() in ['.PNG']:
+            output_file_format += '.png'
+        
+        return png_segmentation_export(reference_image, region_contours, axis=axis, output_file_format=output_file_format, contour_cmap='plasma', verbose=verbose)
         
     if export_format.lower() == 'labelme':
-        labelme_segmentation_export(reference_image, region_contours, axis=axis, output_file_format=output_file_format, verbose=verbose)
+        if not os.path.splitext(output_file_format)[1].upper() in ['.JSON']:
+            output_file_format += '.json'
+            
+        return labelme_segmentation_export(reference_image, region_contours, axis=axis, output_file_format=output_file_format, verbose=verbose)
 
-        
+
 def labelme_segmentation_export(reference_image, region_contours, axis, output_file_format, verbose=None):
     
     def array_to_b64image(image_array, format='PNG'):
@@ -135,8 +162,13 @@ def labelme_segmentation_export(reference_image, region_contours, axis, output_f
         __shapes = []
         for mask in list(region_contours.keys()):
             
-            for C in region_contours[mask][i]:
-                __shapes += [(mask, [list(_) for _ in list(C)])]
+            if type(region_contours[mask]) is dict:
+                for mask_subkey in list(region_contours[mask].keys()):
+                    for C in region_contours[mask][mask_subkey][i]:
+                        __shapes += [('{} ({})'.format(mask, mask_subkey), [list(_) for _ in list(C)])]
+            else:
+                for C in region_contours[mask][i]:
+                    __shapes += [('{}'.format(mask), [list(_) for _ in list(C)])]
         
 
         labelme_data = {
@@ -165,6 +197,58 @@ def labelme_segmentation_export(reference_image, region_contours, axis, output_f
         
         with open(__files[-1], 'w') as _:
             json.dump(labelme_data, _)
+    
+    if verbose is not None and verbose:
+        print('', file=sys.stdout)
+    
+    return __files
+
+def png_segmentation_export(reference_image, region_contours, axis, output_file_format, contour_cmap='plasma', verbose=None):
+    
+    reference_image_stack = VolumeImagery.to_image_stack(reference_image, axis=axis)
+    reference_image_aspectratio = (lambda _: _[0] / _[1])(numpy.delete(numpy.array(reference_image.shape) * numpy.array(reference_image.spacing), axis))
+
+    
+    __counter_length = math.ceil(math.log10(len(reference_image_stack)))
+    __files = []
+    
+    __figure_width_cm = 10
+    
+    __figure_contour_colors = matplotlib.cm.get_cmap(contour_cmap)(numpy.linspace(0, 1, len(region_contours.keys())))
+    
+    for i in range(len(reference_image_stack)):
+        
+        __figure = matplotlib.pyplot.figure(frameon=False);
+        __figure.set_size_inches(__figure_width_cm * 1/2.54, (__figure_width_cm/reference_image_aspectratio) * 1/2.54);
+        
+        __axis = matplotlib.pyplot.Axes(__figure, [0., 0., 1., 1.]);
+        __axis.set_axis_off();
+        
+        __figure.add_axes(__axis);
+        
+        __axis.imshow(reference_image_stack[i].T, aspect='auto', cmap='gray', interpolation='bicubic');
+
+        
+        
+        
+        for m, mask in enumerate(region_contours.keys()):
+            if type(region_contours[mask]) is dict:
+                for mask_subkey in list(region_contours[mask].keys()):
+                    for C in region_contours[mask][mask_subkey][i]:
+                        __axis.plot(C[:,0], C[:,1], color=__figure_contour_colors[m]);
+            else:
+                for C in region_contours[mask][i]:
+                    __axis.plot(C[:,0], C[:,1], color=__figure_contour_colors[m]);
+        
+        
+        __files += [output_file_format.format(('{:0'+ str(__counter_length) +'}').format(i))]
+
+        if verbose is not None and verbose:
+            print(' - Plane {}'.format(i), file=sys.stdout)
+        
+        __figure.savefig(__files[-1], dpi=300);
+        
+        matplotlib.pyplot.close(__figure);
     
     if verbose is not None and verbose:
         print('', file=sys.stdout)
