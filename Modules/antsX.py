@@ -23,6 +23,60 @@ import glob
 import tempfile
 
 
+def header_info(image):
+    """
+    Returns the header information of an ANTs image.
+
+    Parameters
+    ----------
+    image : ants.core.ants_image.ANTsImage
+        Fixed image.
+
+    Returns
+    -------
+    _ : dict
+        Header information.
+    """
+    if type(image) is not ants.core.ants_image.ANTsImage:
+        raise TypeError('`image` is expected to be of type ants.core.ants_image.ANTsImage.')
+        
+    __header_info = dict()
+    
+    __header_info['dimensions'] = image.shape
+    __header_info['spacing'] = image.spacing
+    __header_info['origin'] = image.origin
+    __header_info['orientation'] = image.orientation
+    __header_info['direction'] = image.direction
+    
+    return __header_info
+
+def direction_matrix(orientation):
+    """
+    Returns the direction matrix corresponding to orientation specification.
+    
+    Parameters
+    ----------
+    orientation : str
+        Orientation specifier.
+
+    Returns
+    -------
+    _ : (3,3) ndarray
+        Direction matrix.
+    """
+    
+    if type(orientation) is not str:
+        raise TypeError('`orientation` is expected to be of type str.')
+        
+    if not orientation in ants.get_possible_orientations():
+        raise ValueError('`orientation` is invalid.')
+    
+    __IMAGE = ants.from_numpy(np.zeros((1,1,1), dtype='uint8'))
+    __IMAGE = __IMAGE.reorient_image2(orientation=orientation)
+    
+    return __IMAGE.direction
+
+
 def multistage_registration(fixed, moving, transforms_kwargs, warpedout=False):
     """
     Performs a registration across multiple stages, where the results are properly
@@ -313,29 +367,3 @@ def SyNQuick_registration(fixed, moving, outprefix=''):
     
     
     return custom_registration(fixed, moving, SyNQuick_registration_args, outprefix=outprefix)
-
-def header_info(image):
-    """
-    Returns the header information of an ANTs image.
-
-    Parameters
-    ----------
-    image : ants.core.ants_image.ANTsImage
-        Fixed image.
-
-    Returns
-    -------
-    _ : dict
-        Header information.
-    """
-    if type(image) is not ants.core.ants_image.ANTsImage:
-        raise TypeError('`image` is expected to be of type ants.core.ants_image.ANTsImage.')
-        
-    __header_info = dict()
-    
-    __header_info['dimensions'] = image.shape
-    __header_info['spacing'] = image.spacing
-    __header_info['origin'] = image.origin
-    __header_info['direction'] = image.direction
-    
-    return __header_info

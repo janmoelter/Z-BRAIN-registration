@@ -13,7 +13,7 @@ from Modules import VolumeImagery
 def image_stack_interpolation(stack_images, stack_spacing, target_spacing, output_file_format):
     
     if all([type(image) is str for image in stack_images]):
-        __image_stack = [tifffile.imread(image).T if os.path.isfile(image) else None for image in stack_images]
+        __image_stack = [tifffile.imread(image) if os.path.isfile(image) else None for image in stack_images]
     else:
         __image_stack = stack_images
     
@@ -26,7 +26,7 @@ def image_stack_interpolation(stack_images, stack_spacing, target_spacing, outpu
         output_file_format += '.tif'
 
     for i in range(len(__interpolated_image_stack)):
-        tifffile.imsave(output_file_format.format(('{:0'+ str(__counter_length) +'}').format(i)), __interpolated_image_stack[i].T)
+        tifffile.imsave(output_file_format.format(('{:0'+ str(__counter_length) +'}').format(i)), __interpolated_image_stack[i])
         
 
 

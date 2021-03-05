@@ -10,17 +10,18 @@ import tifffile
 from Modules import VolumeImagery
     
     
-def volume_image_creation(plane_images, plane_spacing=(1.,1.), plane_height=1., plane_axis=2, plane_rotation=0, reverse_order=False, spacing=None, as_mask=False, output_file='out.nrrd'):
+def volume_image_creation(plane_images, image_order='S', plane_orientation=('P', 'R'), plane_spacing=(1.,1.), plane_height=1., as_mask=False, output_file='out.nrrd'):
     
-    __plane_image_arrays = [tifffile.imread(plane_image).T if os.path.isfile(plane_image) else None for plane_image in plane_images]
-
-    if reverse_order:
-        __plane_image_arrays.reverse()
-
-    if not plane_rotation == 0:
-        __plane_image_arrays = [np.rot90(_, k=plane_rotation) for _ in __plane_image_arrays]
+    if not all([os.path.isfile(_) for _ in plane_images]):
+        raise FileNotFoundError('At least one plane image cannot be found.')
     
-    __volume_image = VolumeImagery.from_image_stack(__plane_image_arrays, image_spacing=plane_spacing, image_height=plane_height, axis=plane_axis, spacing=spacing, binary_mask=as_mask)
+    __image_stack = [tifffile.imread(plane_image).astype('float32') for plane_image in plane_images]
+    
+    
+    __volume_image = VolumeImagery.from_image_stack(__image_stack, stack_orientation=image_order, image_orientation=plane_orientation, image_spacing=plane_spacing, image_height=plane_height)
+    
+    
+    __volume_image = VolumeImagery.normalise(image, range=(0,1), as_mask=as_mask)
     
     
     if not os.path.splitext(output_file)[1].upper() in ['.NRRD']:
@@ -33,11 +34,10 @@ if __name__ == "__main__":
     # ********************************************************************************
     # Usage:
     # > python volumeImageCreation.py --plane-images <...>
+    #                                 --image-order <...>
+    #                                 --plane-orientation <...>
     #                                 --plane-spacing <...>
     #                                 --plane-height <...>
-    #                                 --plane-rotation <...>
-    #                                 --reverse-order
-    #                                 --spacing <...>
     #                                 --as-mask
     #                                 --output-file <...>
     #
@@ -47,30 +47,20 @@ if __name__ == "__main__":
     
     __parser = argparse.ArgumentParser()
     __parser.add_argument('--plane-images', dest='plane_images', nargs='+', type=str, required=True)
+    __parser.add_argument('--image-order', dest='image_order', default='S', type=str, required=False)
+    __parser.add_argument('--plane-orientation', dest='plane_orientation', nargs='+', default=['P', 'R'], type=str, required=False)
     __parser.add_argument('--plane-spacing', dest='plane_spacing', nargs='+', default=[1., 1.], type=float, required=True)
     __parser.add_argument('--plane-height', dest='plane_height', default=1., type=float)
-    __parser.add_argument('--plane-axis', dest='plane_axis', default=2, type=int, required=False)
-    __parser.add_argument('--plane-rotation', dest='plane_rotation', default=0, type=int, required=False)
-    __parser.add_argument('--reverse-order', dest='reverse_order', action='store_true', required=False)
-    __parser.add_argument('--spacing', nargs='+', default=None, type=float, required=False)
     __parser.add_argument('--as-mask', dest='as_mask', action='store_true', required=False)
     __parser.add_argument('--output-file', dest='output_file', type=str, required=True)
+    
+    
     
     kwargs = vars(__parser.parse_args())
 
     # ********************************************************************************
     # Include default parameters
 
-    if len(kwargs['plane_spacing']) == 1:
-        kwargs['plane_spacing'] = kwargs['plane_spacing'] * 2
-    elif len(kwargs['plane_spacing']) > 2:
-        kwargs['plane_spacing'] = kwargs['plane_spacing'][:2]
-
-    if kwargs['spacing'] is not None and len(kwargs['spacing']) in [1, 3]:
-        if len(kwargs['spacing']) == 1:
-            kwargs['spacing'] = kwargs['spacing'] * 3
-    else:
-        kwargs['spacing'] = None
 
     # ********************************************************************************
     # Execute main function

@@ -42,6 +42,14 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
     #if not all([_ in ['image', 'labelme'] for _ in export_format]):
     #    raise ValueError('Export format ''{}'' is not supported.'.format(export_format))
     
+    if verbose is not None and verbose:
+        print('=== {} ==='.format('Load moving image'), file=sys.stdout)
+        print(' Directory: {}'.format(moving_data_directory), file=sys.stdout)
+        print('', file=sys.stdout)
+    
+    reference_image = VolumeImagery.load(os.path.join(moving_data_directory, moving_image))
+    reference_image = VolumeImagery.normalise(reference_image)
+    
     
     
     if verbose is not None and verbose:
@@ -55,7 +63,7 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
     
     
     find_mask_contours__kwargs = {
-        'axis': axis,
+        'orientation': 'transverse',
         'segment_length': 0,
         'use_voxels': False,
         'include_holes': True,
@@ -77,6 +85,7 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
         #    print(' - {}'.format(right_hemisphere_mask), file=sys.stdout)
             
         __RH_mask_image = VolumeImagery.load(os.path.join(moving_data_directory, 'region-masks', moving_image_masks_dict.pop(right_hemisphere_mask)), pixeltype='unsigned char')
+        __RH_mask_image = __RH_mask_image.reorient_image2(orientation=reference_image.orientation)
     
     if masks is None:
         masks = list(moving_image_masks_dict.keys())
@@ -92,6 +101,7 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
             print(' - {}'.format(mask), file=sys.stdout)
             
         __mask_image = VolumeImagery.load(os.path.join(moving_data_directory, 'region-masks', moving_image_masks_dict[mask]), pixeltype='unsigned char')
+        __mask_image = __mask_image.reorient_image2(orientation=reference_image.orientation)
         
         if __RH_mask_image is None:
             region_contours[mask] = VolumeImagery.find_mask_contours(__mask_image, **find_mask_contours__kwargs)
@@ -115,31 +125,26 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
         print('', file=sys.stdout)
     
     if verbose is not None and verbose:
-        print('=== {} ==='.format('Load moving image'), file=sys.stdout)
-        print(' Directory: {}'.format(moving_data_directory), file=sys.stdout)
-        print('', file=sys.stdout)
-    
-    reference_image = VolumeImagery.load(os.path.join(moving_data_directory, moving_image))
-    reference_image = (reference_image - reference_image.min()) / (reference_image.max() - reference_image.min())
-    
-    
-    if verbose is not None and verbose:
         print('=== {} ==='.format('Export segmentation images'), file=sys.stdout)
+
+    reference_image_stack, reference_image_spacing = VolumeImagery.to_transverse_image_stack(reference_image, return_spacing=True)
     
     if export_format.lower() == 'image':
         if not os.path.splitext(output_file_format)[1].upper() in ['.PNG']:
             output_file_format += '.png'
+
+        reference_image_stack_aspect_ratio = (reference_image_spacing[2] * reference_image_stack[0].shape[1]) / (reference_image_spacing[1] * reference_image_stack[0].shape[0])
         
-        return png_segmentation_export(reference_image, region_contours, axis=axis, output_file_format=output_file_format, contour_cmap='plasma', verbose=verbose)
+        return png_segmentation_export(reference_image_stack, region_contours, axis=axis, output_file_format=output_file_format, aspect_ratio=reference_image_stack_aspect_ratio, contour_cmap='plasma', verbose=verbose)
         
     if export_format.lower() == 'labelme':
         if not os.path.splitext(output_file_format)[1].upper() in ['.JSON']:
             output_file_format += '.json'
             
-        return labelme_segmentation_export(reference_image, region_contours, axis=axis, output_file_format=output_file_format, verbose=verbose)
+        return labelme_segmentation_export(reference_image_stack, region_contours, axis=axis, output_file_format=output_file_format, verbose=verbose)
 
 
-def labelme_segmentation_export(reference_image, region_contours, axis, output_file_format, verbose=None):
+def labelme_segmentation_export(reference_image_stack, region_contours, axis, output_file_format, verbose=None):
     
     def array_to_b64image(image_array, format='PNG'):
         
@@ -149,9 +154,6 @@ def labelme_segmentation_export(reference_image, region_contours, axis, output_f
         __buffer.seek(0)
         
         return base64.b64encode(__buffer.getvalue()).decode()
-    
-    
-    reference_image_stack = VolumeImagery.to_image_stack(reference_image, axis=axis)
     
     
     __counter_length = math.ceil(math.log10(len(reference_image_stack)))
@@ -165,10 +167,10 @@ def labelme_segmentation_export(reference_image, region_contours, axis, output_f
             if type(region_contours[mask]) is dict:
                 for mask_subkey in list(region_contours[mask].keys()):
                     for C in region_contours[mask][mask_subkey][i]:
-                        __shapes += [('{} ({})'.format(mask, mask_subkey), [list(_) for _ in list(C)])]
+                        __shapes += [('{} ({})'.format(mask, mask_subkey), [list(_) for _ in list(C[:,[1,0]])])]
             else:
                 for C in region_contours[mask][i]:
-                    __shapes += [('{}'.format(mask), [list(_) for _ in list(C)])]
+                    __shapes += [('{}'.format(mask), [list(_) for _ in list(C[:,[1,0]])])]
         
 
         labelme_data = {
@@ -185,7 +187,7 @@ def labelme_segmentation_export(reference_image, region_contours, axis, output_f
                 for shape in __shapes],
             
             'imagePath': '',
-            'imageData': array_to_b64image(reference_image_stack[i].T, format='PNG'),
+            'imageData': array_to_b64image(reference_image_stack[i], format='PNG'),
             'imageHeight': reference_image_stack[i].shape[0],
             'imageWidth': reference_image_stack[i].shape[1],
         }
@@ -203,11 +205,7 @@ def labelme_segmentation_export(reference_image, region_contours, axis, output_f
     
     return __files
 
-def png_segmentation_export(reference_image, region_contours, axis, output_file_format, contour_cmap='plasma', verbose=None):
-    
-    reference_image_stack = VolumeImagery.to_image_stack(reference_image, axis=axis)
-    reference_image_aspectratio = (lambda _: _[0] / _[1])(numpy.delete(numpy.array(reference_image.shape) * numpy.array(reference_image.spacing), axis))
-
+def png_segmentation_export(reference_image_stack, region_contours, axis, output_file_format, aspect_ratio=1, contour_cmap='plasma', verbose=None):
     
     __counter_length = math.ceil(math.log10(len(reference_image_stack)))
     __files = []
@@ -219,14 +217,14 @@ def png_segmentation_export(reference_image, region_contours, axis, output_file_
     for i in range(len(reference_image_stack)):
         
         __figure = matplotlib.pyplot.figure(frameon=False);
-        __figure.set_size_inches(__figure_width_cm * 1/2.54, (__figure_width_cm/reference_image_aspectratio) * 1/2.54);
+        __figure.set_size_inches(__figure_width_cm * 1/2.54, (__figure_width_cm/aspect_ratio) * 1/2.54);
         
         __axis = matplotlib.pyplot.Axes(__figure, [0., 0., 1., 1.]);
         __axis.set_axis_off();
         
         __figure.add_axes(__axis);
         
-        __axis.imshow(reference_image_stack[i].T, aspect='auto', cmap='gray', interpolation='bicubic');
+        __axis.imshow(reference_image_stack[i], aspect='auto', cmap='gray', interpolation='bicubic');
 
         
         
@@ -235,10 +233,10 @@ def png_segmentation_export(reference_image, region_contours, axis, output_file_
             if type(region_contours[mask]) is dict:
                 for mask_subkey in list(region_contours[mask].keys()):
                     for C in region_contours[mask][mask_subkey][i]:
-                        __axis.plot(C[:,0], C[:,1], color=__figure_contour_colors[m]);
+                        __axis.plot(C[:,1], C[:,0], color=__figure_contour_colors[m]);
             else:
                 for C in region_contours[mask][i]:
-                    __axis.plot(C[:,0], C[:,1], color=__figure_contour_colors[m]);
+                    __axis.plot(C[:,1], C[:,0], color=__figure_contour_colors[m]);
         
         
         __files += [output_file_format.format(('{:0'+ str(__counter_length) +'}').format(i))]
