@@ -107,9 +107,8 @@ if __name__ == "__main__":
 
     if not kwargs['no_optimisation']:
         kwargs['optimisation_args'] = {
-            'axis' : 2,
-            'dilation_erosion_radius' : 10,
-            'min_connected_component_size' : 100
+            'dilation_erosion_radius' : 20,
+            'min_connected_component_size' : 20**3
         }
 
     else:

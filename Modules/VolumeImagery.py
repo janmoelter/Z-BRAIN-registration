@@ -35,6 +35,9 @@ import numpy
 import skimage
 import skimage.measure
 
+import scipy.ndimage.morphology
+import scipy.ndimage.measurements
+
 
 def from_sagittal_image_stack(image_stack, image_spacing=(1.,1.), image_height=1.):
     """
@@ -699,7 +702,41 @@ def anatomically_annotate(image):
     
     return __IMAGE
 
-def mask_optimisation(mask, axis=None, dilation_erosion_radius=None, min_connected_component_size=None):
+
+def ellipsoid(radius, dtype=numpy.uint8):
+    """
+    Generates an ellipsoidal structuring element. This extends the collection of
+    structure elements defined in the scikit-image library.
+    
+    Parameters
+    ----------
+    radius : tuple of int
+        Radii of the ellipsoidal structuring element.
+
+    Returns
+    -------
+    selem : ndarray
+        The structuring element where elements of the neighborhood are 1 and 0
+        otherwise.
+    """
+    
+    if not (type(radius) in [tuple, list] and all([type(_) is int for _ in radius])):
+        raise TypeError('`radius` is expected to be of either type tuple or list with elements of type int.')
+    
+    if not all([_ > 0 for _ in radius]):
+        raise ValueError('All elements of `radius` are expected to be positive.')
+    
+    radius = numpy.array(radius)
+    
+    n = 2 * radius + 1
+    S = numpy.moveaxis(numpy.indices(tuple(n)), 0, -1)
+    
+    S = numpy.sum(((S - n // 2) / radius) ** 2, axis=len(n))
+    S = numpy.where(S > 1, 0, 1).astype(dtype)
+    
+    return S
+
+def mask_optimisation(mask, dilation_erosion_radius=None, min_connected_component_size=None):
     """
     Optimises mask images by dilation-erosion and the discrimination of small
     connected components.
@@ -708,32 +745,16 @@ def mask_optimisation(mask, axis=None, dilation_erosion_radius=None, min_connect
     ----------
     mask: ants.core.ants_image.ANTsImage
         3-dimensional mask image.
-    axis : int
-        Axis along which to perform the dilation-erosion. Default is None.
     dilation_erosion_radius : float or int
         Dilation-erosion radius (Units: 1µm). Default is None.
     min_connected_component_size : float or int
-        Minimal size of a connected component (Units: 1µm²). Default is None.
+        Minimal volume of a connected component (Units: 1µm³). Default is None.
 
     Returns
     -------
     _ : ants.core.ants_image.ANTsImage
         Optimised mask.
     """
-
-    def ndarray_slice(dimensions, axis, index):
-        _slice = [slice(None)] * dimensions
-    
-        if axis < dimensions:
-            _slice[axis] = index
-        
-        return tuple(_slice)
-    
-    def drop(list, index):
-        list.pop(index)
-        
-        return list
-
 
     if not type(mask) is ants.core.ants_image.ANTsImage:
         raise TypeError('`mask` is expected to be of type ants.core.ants_image.ANTsImage.')
@@ -747,45 +768,32 @@ def mask_optimisation(mask, axis=None, dilation_erosion_radius=None, min_connect
     if not mask.dimension in [2, 3]:
         raise ValueError('`mask` is expected to be of dimension 2 or 3.')
     
-    
     __mask = mask.clone()
-    __mask = __mask.astype('float32')
+
+    assert set(__mask.unique()) == {0, 1}, '`mask` is not binary.'
+
+
+    # Step 1: Dilation-Erosion
+
+    DE_structure = ellipsoid([int(_) for _ in numpy.ceil(numpy.full(__mask.dimension, dilation_erosion_radius) / numpy.array(__mask.spacing))])
+
+    __mask[:,:,:] = scipy.ndimage.morphology.binary_dilation(__mask[:,:,:], structure=DE_structure, border_value=0).astype(__mask.dtype)
+    __mask[:,:,:] = scipy.ndimage.morphology.binary_erosion(__mask[:,:,:], structure=DE_structure, border_value=1).astype(__mask.dtype)
     
-    if __mask.dimension == 3:
-        if axis is None:
-            raise ValueError('Dilations-erosion cannot be performed with axis set to None.')
-        
-        for i in range(__mask.shape[axis]):
-            
-            __slice = ndarray_slice(3, axis, i)
-            
-            __mask_slice = ants.from_numpy(__mask[__slice], spacing=drop(list(mask.spacing), axis))
-            __mask_slice = mask_optimisation(__mask_slice, dilation_erosion_radius=dilation_erosion_radius, min_connected_component_size=min_connected_component_size)
-            
-            __mask[__slice] = __mask_slice.numpy()
-        
-        
-    elif __mask.dimension == 2:
-        
-        if dilation_erosion_radius is not None:
-            if not len(set(__mask.spacing)) == 1:
-                raise ValueError('Dilation-erosion cannot be performed with non-uniform spacing.')
-            
-            __radius = dilation_erosion_radius / __mask.spacing[0]
-            
-            __mask = ants.morphology(__mask, operation='dilate', radius=__radius)
-            __mask = ants.morphology(__mask, operation='erode', radius=__radius)
-        
-        
-        if min_connected_component_size is not None:
-            
-            __size = min_connected_component_size / (__mask.spacing[0] * __mask.spacing[1])
-            
-            for rprop in skimage.measure.regionprops(skimage.measure.label(__mask.view())):
-                if rprop['area'] < __size:
-                    __mask[rprop['slice']] = 0
-                    
-                    
+    
+    # Step 2: Connected-Component discrimination
+    
+    __labeled_mask, N_labels = scipy.ndimage.measurements.label(__mask[:,:,:])
+
+    print(__mask.spacing)
+    print('*' * 80)
+    for _ in range(1, N_labels+1):
+        print(numpy.sum(__labeled_mask == _) * math.prod(__mask.spacing))
+        if numpy.sum(__labeled_mask == _) * math.prod(__mask.spacing) < min_connected_component_size:
+            #print('Volume:', numpy.sum(__labeled_mask == _) * math.prod(__mask.spacing), '(', numpy.sum(__labeled_mask == _), ')', min_connected_component_size)
+            __mask[__labeled_mask == _] = 0
+
+
     return __mask.astype('uint8')
 
 
