@@ -1,6 +1,8 @@
 import os
 import sys
 
+import traceback
+
 import ants
 import numpy as np
 
@@ -69,6 +71,7 @@ if __name__ == "__main__":
         volume_image_creation(**kwargs)
     except:
         print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 
     sys.exit(0)

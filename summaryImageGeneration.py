@@ -1,6 +1,8 @@
 import os
 import sys
 
+import traceback
+
 import py7zr
 import tifffile
 
@@ -78,6 +80,7 @@ if __name__ == "__main__":
         extract_7z_archive(**kwargs)
     except:
         print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 
     sys.exit(0)
