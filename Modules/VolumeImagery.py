@@ -651,7 +651,19 @@ def save(volume_image, output_path, override=False):
         
     volume_image.to_file(output_path)
 
-def anatomically_annotate(image):
+def anatomical_orientation_letters():
+    """
+    Returns a dictionary of 100x100 pixel images of letters to indicate anatomical
+    directions.
+    
+    Parameters
+    ----------
+    None
+    
+    Returns
+    -------
+    None
+    """
 
     import base64
     import zlib
@@ -692,8 +704,62 @@ def anatomically_annotate(image):
         LETTERS[_] = text_transform_array(LETTERS[_], shape=(100,100))
         LETTERS[_] = LETTERS[_].astype('float')
         LETTERS[_] = (LETTERS[_] - LETTERS[_].min()) / (LETTERS[_].max() - LETTERS[_].min())
+
     
-        
+    return LETTERS 
+
+def create_orientation_test_image(output_path=None):
+    """
+    Creates a test image for anatomical orientations.
+    
+    Parameters
+    ----------
+    output_path : str
+        Output path for the test image. If None, no image is saved. Default is None.
+    
+    Returns
+    -------
+    _ : ants.core.ants_image.ANTsImage
+        Test image.
+    """
+
+    if not (output_path is None or type(output_path) is str):
+        raise TypeError('`output_path` is expected to be of type str.')
+    
+
+    LETTERS = anatomical_orientation_letters()
+
+    __RL_stack = interpolate_image_stack([LETTERS['R'], LETTERS['L']], 100-1, 1)
+    __AP_stack = interpolate_image_stack([LETTERS['A'], LETTERS['P']], 100-1, 1)
+    __IS_stack = interpolate_image_stack([LETTERS['I'], LETTERS['S']], 100-1, 1)
+    
+    ORIENTATION_image = from_sagittal_image_stack(__RL_stack) + from_coronal_image_stack(__AP_stack) + from_transverse_image_stack(__IS_stack)
+    
+    ORIENTATION_image[:,:,:] = 255 * numpy.clip(ORIENTATION_image[:,:,:], 0, 1)
+    ORIENTATION_image = ORIENTATION_image.astype('uint8')
+    
+    save(ORIENTATION_image, output_path)
+
+    return ORIENTATION_image
+
+def anatomically_annotate(image):
+    """
+    Adds annotations of anatomical orientations to a volumetric image.
+    
+    Parameters
+    ----------
+    image : ants.core.ants_image.ANTsImage
+        Volumetric image.
+    
+    Returns
+    -------
+    _ : ants.core.ants_image.ANTsImage
+        Annotated volumetric image.
+    """
+
+
+    LETTERS = anatomical_orientation_letters()
+    
     
     __IMAGE = image.clone()
     __IMAGE_MAX = __IMAGE.max()
@@ -774,7 +840,7 @@ def mask_optimisation(mask, dilation_erosion_radius=None, min_connected_componen
 
     Parameters
     ----------
-    mask: ants.core.ants_image.ANTsImage
+    mask : ants.core.ants_image.ANTsImage
         3-dimensional mask image.
     dilation_erosion_radius : float or int
         Dilation-erosion radius (Units: 1µm). Default is None.
