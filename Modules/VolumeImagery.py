@@ -32,14 +32,16 @@ import ants
 from . import antsX
 import numpy
 
-import skimage
-import skimage.measure
+import scipy.spatial.transform
 
 import scipy.ndimage.morphology
 import scipy.ndimage.measurements
 
+import skimage
+import skimage.measure
 
-def from_sagittal_image_stack(image_stack, image_spacing=(1.,1.), image_height=1.):
+
+def from_sagittal_image_stack(image_stack, image_rotation=0, image_spacing=(1.,1.), image_height=1.):
     """
     Converts a sagittal stack of 2-dimensional image rasters into a volumetric image
     in RAI orientation.
@@ -59,6 +61,11 @@ def from_sagittal_image_stack(image_stack, image_spacing=(1.,1.), image_height=1
                   └───────┘
             [-1,0]         [-1,-1]    
     
+    image_rotation : float or int
+        Rotation angle of the image. This is the angle of rotation require to
+        properly align the image with its specified orientation (Units: 1rad). Note
+        that angles are measured positively in counter-clockwise direction and
+        negatively in clockwise direction. Default is 0.
     image_spacing : (2,) tuple of float or int
         Spacing of the 2-dimensional image rasters, the width of the pixels along
         the first and second axis of the image rasters (Units: 1µm), respectively.
@@ -73,11 +80,11 @@ def from_sagittal_image_stack(image_stack, image_spacing=(1.,1.), image_height=1
     """
     
     
-    __IMAGE = from_image_stack(image_stack, 'L', ('I', 'A'), image_spacing=image_spacing, image_height=image_height)
+    __IMAGE = from_image_stack(image_stack, 'L', ('I', 'A'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
     
     return __IMAGE
 
-def from_coronal_image_stack(image_stack, image_spacing=(1.,1.), image_height=1.):
+def from_coronal_image_stack(image_stack, image_rotation=0, image_spacing=(1.,1.), image_height=1.):
     """
     Converts a coronal stack of 2-dimensional image rasters into a volumetric image
     in RAI orientation.
@@ -97,6 +104,11 @@ def from_coronal_image_stack(image_stack, image_spacing=(1.,1.), image_height=1.
                   └───────┘
             [-1,0]         [-1,-1]    
     
+    image_rotation : float or int
+        Rotation angle of the image. This is the angle of rotation require to
+        properly align the image with its specified orientation (Units: 1rad). Note
+        that angles are measured positively in counter-clockwise direction and
+        negatively in clockwise direction. Default is 0.
     image_spacing : (2,) tuple of float or int
         Spacing of the 2-dimensional image rasters, the width of the pixels along
         the first and second axis of the image rasters (Units: 1µm), respectively.
@@ -111,11 +123,11 @@ def from_coronal_image_stack(image_stack, image_spacing=(1.,1.), image_height=1.
     """
     
     
-    __IMAGE = from_image_stack(image_stack, 'P', ('I', 'R'), image_spacing=image_spacing, image_height=image_height)
+    __IMAGE = from_image_stack(image_stack, 'P', ('I', 'R'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
     
     return __IMAGE
 
-def from_transverse_image_stack(image_stack, image_spacing=(1.,1.), image_height=1.):
+def from_transverse_image_stack(image_stack, image_rotation=0, image_spacing=(1.,1.), image_height=1.):
     """
     Converts a transverse stack of 2-dimensional image rasters into a volumetric
     image in RAI orientation.
@@ -135,6 +147,11 @@ def from_transverse_image_stack(image_stack, image_spacing=(1.,1.), image_height
                   └───────┘
             [-1,0]         [-1,-1]    
     
+    image_rotation : float or int
+        Rotation angle of the image. This is the angle of rotation require to
+        properly align the image with its specified orientation (Units: 1rad). Note
+        that angles are measured positively in counter-clockwise direction and
+        negatively in clockwise direction. Default is 0.
     image_spacing : (2,) tuple of float or int
         Spacing of the 2-dimensional image rasters, the width of the pixels along
         the first and second axis of the image rasters (Units: 1µm), respectively.
@@ -149,11 +166,11 @@ def from_transverse_image_stack(image_stack, image_spacing=(1.,1.), image_height
     """
     
     
-    __IMAGE = from_image_stack(image_stack, 'S', ('P', 'R'), image_spacing=image_spacing, image_height=image_height)
+    __IMAGE = from_image_stack(image_stack, 'S', ('P', 'R'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
     
     return __IMAGE
 
-def from_image_stack(image_stack, stack_orientation, image_orientation, image_spacing=(1.,1.), image_height=1.):
+def from_image_stack(image_stack, stack_orientation, image_orientation, image_rotation=0, image_spacing=(1.,1.), image_height=1.):
     """
     Converts a stack of 2-dimensional image rasters into a volumetric image in RAI
     orientation.
@@ -206,6 +223,11 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_sp
             [-1,0]         [-1,-1]
             
         it is ('I', 'R').
+    image_rotation : float or int
+        Rotation angle of the image. This is the angle of rotation require to
+        properly align the image with its specified orientation (Units: 1rad). Note
+        that angles are measured positively in counter-clockwise direction and
+        negatively in clockwise direction. Default is 0.
     image_spacing : (2,) tuple of float or int
         Spacing of the 2-dimensional image rasters, the width of the pixels along
         the first and second axis of the image rasters (Units: 1µm), respectively.
@@ -228,6 +250,9 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_sp
     if not (type(image_orientation) in [list, tuple] and len(image_orientation) == 2 and all([type(_) is str for _ in image_orientation])):
         raise TypeError('`image_orientation` is expected to be of type tuple with length 2 and with elements of type str.')
 
+    if not type(image_rotation) in [int, float]:
+        raise TypeError('`image_height` is expected to be either of type int or float.')
+
     if not (type(image_spacing) in [list, tuple] and len(image_spacing) == 2 and all([type(_) in [int, float] for _ in image_spacing])):
         raise TypeError('`image_spacing` is expected to be of type tuple with length 2 and with elements of type int or float.')
 
@@ -243,6 +268,8 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_sp
     if not all([_ in ['R', 'L', 'A', 'P', 'I', 'S'] for _ in [stack_orientation] + list(image_orientation)]):
         raise ValueError('`stack_orientation` and `image_orientation` are expected to consist only of letters ''R'', ''L'', ''A'', ''P'', ''I'', and ''S''.')
     
+    if abs(image_rotation) > math.pi / 4:
+        pass
     
     
     def invert_orientation_specifier(orientation):
@@ -257,6 +284,10 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_sp
     
     __SPACING = tuple([image_height] + list(image_spacing))
     __DIRECTION = antsX.direction_matrix(__IMAGE_ARRAY_ORIENTATION)
+    
+    if not image_rotation == 0:
+        __ROTATION = scipy.spatial.transform.Rotation.from_rotvec(image_rotation * numpy.abs(__DIRECTION[:,0]))
+        __DIRECTION = __ROTATION.apply(__DIRECTION.T).T
     
     __IMAGE = ants.from_numpy(__IMAGE_ARRAY, spacing=__SPACING, direction=__DIRECTION)
     # `__IMAGE` has been initialised from `__IMAGE_ARRAY` in its natural orientation.
