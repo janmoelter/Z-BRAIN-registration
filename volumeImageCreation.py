@@ -23,7 +23,8 @@ def volume_image_creation(plane_images, image_order='S', plane_orientation=('P',
     __volume_image = VolumeImagery.from_image_stack(__image_stack, stack_orientation=image_order, image_orientation=plane_orientation, image_rotation=plane_rotation, image_spacing=plane_spacing, image_height=plane_height)
     
     
-    __volume_image = VolumeImagery.normalise(image, range=(0,1), as_mask=as_mask)
+    if as_mask:
+        __volume_image = VolumeImagery.normalise(__volume_image, range=(0,1), as_mask=as_mask)
     
     
     if not os.path.splitext(output_file)[1].upper() in ['.NRRD']:

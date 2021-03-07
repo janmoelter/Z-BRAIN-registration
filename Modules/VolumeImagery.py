@@ -647,7 +647,7 @@ def save(volume_image, output_path, override=False):
         raise TypeError('`output_path` is expected to be of type str.')
         
     if os.path.isfile(output_path) and not override:
-        raise FileExistsError('The file {} does already exist and `override` is set to False.'.format(path))
+        raise FileExistsError('The file {} does already exist and `override` is set to False.'.format(output_path))
         
     volume_image.to_file(output_path)
 
