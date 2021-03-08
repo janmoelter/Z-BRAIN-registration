@@ -5,13 +5,15 @@ import traceback
 
 import json
 
+import numpy
+
 import ants
 from Modules import antsX
 
 from Modules import BrainAtlas
 
 
-def registration(reference_atlas_directory, atlas_registration_label, moving_data_directory, moving_image, verbose=None):
+def registration(reference_atlas_directory, atlas_registration_label, moving_data_directory, moving_image, initialisation=False, verbose=None):
 
     if not os.path.isdir(reference_atlas_directory):
         raise FileNotFoundError('Reference atlas directory does not exist.')
@@ -45,13 +47,37 @@ def registration(reference_atlas_directory, atlas_registration_label, moving_dat
     
     if not os.path.isdir(os.path.join(moving_data_directory, 'registration')):
         os.mkdir(os.path.join(moving_data_directory, 'registration'))
-    
+
+    # ********************************************************************************
+    # Find initial transformation
+    #
+
+    #if initialisation:
+    #
+    #    if verbose is not None and verbose:
+    #        print('- {}'.format('Find initial registration transformation'), file=sys.stdout)
+    #    
+    #    kwargs = {
+    #        'image1': ants.resample_image(__reference_atlas.labels[atlas_registration_label], resample_params=(5,5,5)),
+    #        'image2': ants.resample_image(__moving_image, resample_params=(5,5,5)),
+    #        'transform': 'Affine',
+    #        'local_search_iterations': 10,
+    #        'thetas': numpy.linspace(-5, 5, 5),
+    #        'thetas2': numpy.linspace(-5, 5, 5),
+    #        'thetas3': numpy.linspace(-5, 5, 5),
+    #        'txfn': os.path.join(moving_data_directory, 'registration', 'initialization.mat'),
+    #    }
+    #    
+    #    ants.invariant_image_similarity(**kwargs)
     
     # ********************************************************************************
     # SyNQuick Registration
     #
     # This registration procedure is used by Favre-Bulle et al. 2018 (Curr. Biol. 28).
     #
+
+    if verbose is not None and verbose:
+        print('- {}'.format('Find complete registration transformation'), file=sys.stdout)
         
     kwargs = {
         'fixed': __reference_atlas.labels[atlas_registration_label],
@@ -61,6 +87,9 @@ def registration(reference_atlas_directory, atlas_registration_label, moving_dat
         'outprefix': os.path.join(moving_data_directory, 'registration', 'transformation_'),
         'verbose': True
     }
+
+    #if initialisation and os.path.isfile(os.path.join(moving_data_directory, 'registration', 'initialization.mat')):
+    #    kwargs['initial_transform'] = os.path.join(moving_data_directory, 'registration', 'initialization.mat')
     
     ants.registration(**kwargs)
 
@@ -213,29 +242,30 @@ def registration(reference_atlas_directory, atlas_registration_label, moving_dat
 
 if __name__ == "__main__":
     # ********************************************************************************
-    # Usage:
-    # > python registration.py --reference_atlas_directory <...>
-    #                          --atlas_registration_label <...>
-    #                          --moving_data_directory <...>
-    #                          --moving_image <...>
+    # Argument parsing
     #
     
     import argparse
     
     
-    __parser = argparse.ArgumentParser()
-    __parser.add_argument('--reference-atlas-directory', dest='reference_atlas_directory', type=str, required=True)
-    __parser.add_argument('--atlas-registration-label', dest='atlas_registration_label', type=str, required=True)
-    __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True)
-    __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True)
+    __parser = argparse.ArgumentParser(
+        description='Registers a volume image to a reference atlas, such as one derived from a Z-BRAIN 1.0 dataset.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    __parser.add_argument('--reference-atlas-directory', dest='reference_atlas_directory', type=str, required=True, metavar='<path>', help='Path to the directory of a reference atlas.')
+    __parser.add_argument('--atlas-registration-label', dest='atlas_registration_label', type=str, required=True, metavar='<name>', help='Name of an anatomical label defined in the reference atlas. The registration will be performed to this label.')
+    __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True, metavar='<path>', help='Path to the directory of a moving image.')
+    __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True, metavar='<path>', help='Moving image in the directory of the moving image. This image will be registered to the reference atlas.')
+    __parser.add_argument('--run-initialisation', dest='initialisation', action='store_true', help='-- NOT IMPLEMENTED -- Indicates whether to perform a search for an initial transform to align the moving image with the reference atlas beform the actual registration. Note that performing the initialisation might take a considerable amount of time, but should improve the registration results. However, if the moving image is already properly oriented in space, this is generally not necessary.')
     
     kwargs = vars(__parser.parse_args())
+    
 
     # ********************************************************************************
-    # Include default parameters
+    # Preprocess arguments
 
-    if kwargs['moving_image'] is None:
-        kwargs['moving_image'] = 'moving-image.nrrd'
+    if kwargs['initialisation']:
+        kwargs.pop('initialisation')
 
     # ********************************************************************************
     # Execute main function
@@ -243,7 +273,9 @@ if __name__ == "__main__":
     try:
         registration(**kwargs, verbose=True)
     except:
-        print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print('', file=sys.stdout)
+        print('', file=sys.stdout)
+        print('An error occured. Operation could not be completed.', file=sys.stdout)
         print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 

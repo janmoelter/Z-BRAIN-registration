@@ -55,9 +55,7 @@ def average_tiff_pages(tiff_fname, output_directory):
     
 if __name__ == "__main__":
     # ********************************************************************************
-    # Usage:
-    # > python summaryImageGeneration.py --7z-archive <...>
-    #                                    --output-directory <...>
+    # Argument parsing
     #
     
     import argparse
@@ -70,7 +68,7 @@ if __name__ == "__main__":
     kwargs = vars(__parser.parse_args())
 
     # ********************************************************************************
-    # Include default parameters
+    # Preprocess arguments
 
 
     # ********************************************************************************
@@ -79,7 +77,9 @@ if __name__ == "__main__":
     try:
         extract_7z_archive(**kwargs)
     except:
-        print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print('', file=sys.stdout)
+        print('', file=sys.stdout)
+        print('An error occured. Operation could not be completed.', file=sys.stdout)
         print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 

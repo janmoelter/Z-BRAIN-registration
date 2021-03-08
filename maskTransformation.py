@@ -82,28 +82,26 @@ def mask_transformation(reference_atlas_directory, atlas_masks, moving_data_dire
 
 if __name__ == "__main__":
     # ********************************************************************************
-    # Usage:
-    # > python maskTransformation.py --reference-atlas-directory <...>
-    #                           	 --atlas-registration-label <...>
-    #                                --moving-data-directory <...>
-    #                                --moving-image <...>
-    #                                --no-optimisation
+    # Argument parsing
     #
     
     import argparse
     
     
-    __parser = argparse.ArgumentParser()
-    __parser.add_argument('--reference-atlas-directory', dest='reference_atlas_directory', type=str, required=True)
-    __parser.add_argument('--atlas-masks', dest='atlas_masks', nargs='+', type=str, required=False)
-    __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True)
-    __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True)
-    __parser.add_argument('--no-optimisation', action='store_true', required=False)
+    __parser = argparse.ArgumentParser(
+        description='Transforms a set of region masks from a reference atlas back onto a volume image using the transformation obtained from a previous registration of that image to the atlas.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    __parser.add_argument('--reference-atlas-directory', dest='reference_atlas_directory', type=str, required=True, metavar='<path>', help='Path to the directory of a reference atlas.')
+    __parser.add_argument('--atlas-masks', dest='atlas_masks', default=None, nargs='*', type=str, required=False, metavar='<name>', help='Names of region masks defined in the reference atlas. These masks will be transformed back to obtain masks for the corresponding regions on the moving image. If this argument is not given, all masks of the reference atlas will be transformed.')
+    __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True, metavar='<path>', help='Path to the directory of a moving image.')
+    __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True, metavar='<path>', help='Moving image in the directory of the moving image. This image must have been previously registered to the reference atlas.')
+    __parser.add_argument('--no-optimisation', action='store_true', required=False, help='Indicates whether to optimise the masks after the transformation. The optimisation includes a dilation-erosion procedure and removes small connected components. This generally improves the result but might require more memory.')
     
     kwargs = vars(__parser.parse_args())
 
     # ********************************************************************************
-    # Include default parameters
+    # Preprocess arguments
 
     if not kwargs['no_optimisation']:
         kwargs['optimisation_args'] = {
@@ -122,7 +120,9 @@ if __name__ == "__main__":
     try:
         mask_transformation(**kwargs, verbose=True)
     except:
-        print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print('', file=sys.stdout)
+        print('', file=sys.stdout)
+        print('An error occured. Operation could not be completed.', file=sys.stdout)
         print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 

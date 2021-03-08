@@ -81,33 +81,29 @@ def ZBRAIN_atlas_generation(name, output_directory, Z_BRAIN_directory, spacing=N
 
 if __name__ == "__main__":
     # ********************************************************************************
-    # Usage:
-    # > python _Z-BRAIN-atlas-creation.py --name <...>
-    #                                     --output_directory <...>
-    #                                     --Z_BRAIN_directory <...>
-    #                                     --spacing <...>
+    # Argument parsing
     #
     
     import argparse
     
     
-    __parser = argparse.ArgumentParser()
-    __parser.add_argument('--name', type=str, required=True)
-    __parser.add_argument('--output-directory', dest='output_directory', type=str, required=True)
-    __parser.add_argument('--Z-BRAIN-directory', dest='Z_BRAIN_directory', type=str, required=True)
+    __parser = argparse.ArgumentParser(
+        description='Creates an atlas derived from the Z-BRAIN 1.0 dataset.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    __parser.add_argument('--name', dest='name', type=str, required=True, metavar='<name>', help='Name of the Z-BRAIN atlas. The corresponding data files will be saved in a directory with that name in the output directory. If an atlas with that name already exists in the output directory, it will not be overwritten and rather an error thrown.')
+    __parser.add_argument('--output-directory', dest='output_directory', type=str, required=True, metavar='<path>', help='Output directory for the atlas. If that directory does not already exists, it will not be created and rather an error thrown.')
+    __parser.add_argument('--Z-BRAIN-directory', dest='Z_BRAIN_directory', type=str, required=True, metavar='<path>', help='Path to the directory containing a copy of the Z-BRAIN 1.0 dataset. Specifically, this dataset consists at least of the anatomical reference image `Ref20131120pt14pl2.nrrd`, the database of anatomical labels `AnatomyLabelDatabase.hdf5`, and the database of region masks `MaskDatabase.mat`.')
     #__parser.add_argument('--include-extensions', dest='include_specials', action='store_true', required=False)
-    __parser.add_argument('--spacing', nargs='+', type=float, required=False)
+    __parser.add_argument('--spacing', dest='spacing', default=None, nargs=3, type=float, required=False, metavar='<spacing>', help='Spacing of the atlas in sagittal, coronal, and transverse direction.')
     
     kwargs = vars(__parser.parse_args())
 
     # ********************************************************************************
-    # Include default parameters
+    # Preprocess arguments
 
     if kwargs['spacing'] is not None:
         kwargs['spacing'] = tuple(kwargs['spacing'])
-
-        if not len(kwargs['spacing']) == 3:
-            kwargs['spacing'] = None
 
     # ********************************************************************************
     # Execute main function
@@ -115,7 +111,9 @@ if __name__ == "__main__":
     try:
         ZBRAIN_atlas_generation(**kwargs, verbose=True)
     except:
-        print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print('', file=sys.stdout)
+        print('', file=sys.stdout)
+        print('An error occured. Operation could not be completed.', file=sys.stdout)
         print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 

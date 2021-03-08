@@ -34,26 +34,25 @@ def image_stack_interpolation(stack_images, stack_spacing, target_spacing, outpu
 
 if __name__ == "__main__":
     # ********************************************************************************
-    # Usage:
-    # > python imageStackInterpolation.py --plane-images <...>
-    #                                     --plane-distance <...>
-    #                                     --interpolation-distance <...>
-    #                                     --output-file <...>
+    # Argument parsing
     #
     
     import argparse
     
     
-    __parser = argparse.ArgumentParser()
-    __parser.add_argument('--plane-images', dest='stack_images', nargs='+', type=str, required=True)
-    __parser.add_argument('--plane-spacing', dest='stack_spacing', nargs='+', type=float, required=True)
-    __parser.add_argument('--interpolation-distance', dest='target_spacing', type=float, required=True)
-    __parser.add_argument('--output-file-format', dest='output_file_format', type=str, required=True)
+    __parser = argparse.ArgumentParser(
+        description='Creates a uniformly spaced series of imaging planes by linear interpolation.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    __parser.add_argument('--plane-images', dest='stack_images', nargs='+', type=str, required=True, metavar='<file name>', help='List of planar images through an imaging volume in the uncompressed TIFF image format.')
+    __parser.add_argument('--plane-distances', dest='stack_spacing', nargs='+', type=float, required=True, metavar='spacing', help='Distances between consecutive imaging planes.')
+    __parser.add_argument('--interpolation-distance', dest='target_spacing', type=float, required=True, metavar='spacing', help='Uniform distance between consecutive imaging planes in the interpolated series.')
+    __parser.add_argument('--output-file-format', dest='output_file_format', type=str, required=True, metavar='<path>', help='Path for the output files. The character combination \'{}\' will be interpreted as a placeholder for the counter.')
     
     kwargs = vars(__parser.parse_args())
 
     # ********************************************************************************
-    # Include default parameters
+    # Preprocess arguments
 
 
     # ********************************************************************************
@@ -62,7 +61,9 @@ if __name__ == "__main__":
     try:
         image_stack_interpolation(**kwargs)
     except:
-        print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print('', file=sys.stdout)
+        print('', file=sys.stdout)
+        print('An error occured. Operation could not be completed.', file=sys.stdout)
         print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 

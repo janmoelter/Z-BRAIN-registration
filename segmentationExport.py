@@ -264,41 +264,40 @@ def png_segmentation_export(reference_image_stack, region_contours, output_file_
 
 if __name__ == "__main__":
     # ********************************************************************************
-    # Usage:
-    # > python segmentationExport.py --moving-data-directory <...>
-    #                           	 --moving-image <...>
-    #                                --output-file-format <...>
-    #                                --export-format <...>
-    #                                --masks <...>
-    #                                --axis <...>
-    #	                             --right-hemisphere-mask <...>
+    # Argument parsing
     #
     
     import argparse
     
     
-    __parser = argparse.ArgumentParser()
-    __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True)
-    __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True)
-    __parser.add_argument('--plane-order', dest='image_order', default='I', type=str, required=False)
-    __parser.add_argument('--plane-orientation', dest='image_orientation', nargs='+', default=['A', 'L'], type=str, required=False)
-    __parser.add_argument('--output-file-format', dest='output_file_format', type=str, required=True)
-    __parser.add_argument('--export-format', dest='export_format', type=str, required=True)
-    __parser.add_argument('--masks', dest='masks', nargs='+', default=None, type=str, required=False)
-    __parser.add_argument('--right-hemisphere-mask', default=None, type=str, required=False)
+    __parser = argparse.ArgumentParser(
+        description='Exports the segmentation induced by a set of region masks to series of images in different formats.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True, metavar='<path>', help='Path to the directory of a moving image.')
+    __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True, help='Moving image in the directory of the moving image.')
+    __parser.add_argument('--plane-order', dest='image_order', default='I', choices=['R', 'L', 'A', 'P', 'I', 'S'], type=str, required=True, metavar='<order>', help='Order of the imaging planes in terms of the anatomical direction. Note that this direction specifies the origin rather than the target. Hence, if the imaging planes are ordered from inferior to superior, the order will be \'I\'.')
+    __parser.add_argument('--plane-orientation', dest='image_orientation', nargs=2, default=['A', 'L'], choices=['R', 'L', 'A', 'P', 'I', 'S'], type=str, required=True, metavar='<orientation>', help='Orientation of the imaging planes in terms of the anatomical directions of the first (vertical) and the second (horizontal) axis. Note that an image\'s origin is in the upper left corner and that these directions specify the origins rather than the targets. Hence, if the axes go from anterior to posterior and left to right, their orientation will be \'A\' and \'L\', respectively.')
+    __parser.add_argument('--output-file-format', dest='output_file_format', type=str, required=True, metavar='<path>', help='Path for the output files. The character combination \'{}\' will be interpreted as a placeholder for the counter.')
+    __parser.add_argument('--export-format', dest='export_format', choices=['image', 'labelme'], type=str, required=True, metavar='<format>', help='Export format. With the \'image\' format a series of images in the PNG format will be created and with the \'labelme\' format a series of JSON text files to be used with the `labelme` programme.')
+    __parser.add_argument('--masks', dest='masks', nargs='*', default=None, type=str, required=False, metavar='<name>', help='Names of region masks to be included in the segmentation. If this argument is not given, all masks will be included.')
+    __parser.add_argument('--right-hemisphere-mask', default=None, type=str, required=False, metavar='<name>', help='Name of the mask for the right hemisphere. If such a mask exists, it will be used to distinguish in the segmentation between the parts of regions falling in the left and right hemisphere.')
     
     kwargs = vars(__parser.parse_args())
 
     # ********************************************************************************
-    # Include default parameters
+    # Preprocess arguments
 
+    
     # ********************************************************************************
     # Execute main function
 
     try:
         segmentation_export(**kwargs, verbose=True)
     except:
-        print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print('', file=sys.stdout)
+        print('', file=sys.stdout)
+        print('An error occured. Operation could not be completed.', file=sys.stdout)
         print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 

@@ -3,6 +3,8 @@ import sys
 
 import traceback
 
+import math
+
 import ants
 import numpy as np
 
@@ -35,36 +37,33 @@ def volume_image_creation(plane_images, image_order='I', plane_orientation=('A',
 
 if __name__ == "__main__":
     # ********************************************************************************
-    # Usage:
-    # > python volumeImageCreation.py --plane-images <...>
-    #                                 --image-order <...>
-    #                                 --plane-orientation <...>
-    #                                 --plane-spacing <...>
-    #                                 --plane-height <...>
-    #                                 --as-mask
-    #                                 --output-file <...>
+    # Argument parsing
     #
     
     import argparse
     
     
-    __parser = argparse.ArgumentParser()
-    __parser.add_argument('--plane-images', dest='plane_images', nargs='+', type=str, required=True)
-    __parser.add_argument('--plane-image-order', dest='image_order', default='I', type=str, required=True)
-    __parser.add_argument('--plane-orientation', dest='plane_orientation', nargs='+', default=['A', 'L'], type=str, required=True)
-    __parser.add_argument('--plane-rotation', dest='plane_rotation', default=0, type=float, required=False)
-    __parser.add_argument('--plane-spacing', dest='plane_spacing', nargs='+', default=[1., 1.], type=float, required=True)
-    __parser.add_argument('--plane-height', dest='plane_height', default=1., type=float, required=True)
-    __parser.add_argument('--as-mask', dest='as_mask', action='store_true', required=False)
-    __parser.add_argument('--output-file', dest='output_file', type=str, required=True)
+    __parser = argparse.ArgumentParser(
+        description='Creates a volumetric image, properly oriented in space, from a series of images taken from different planes through the imaging volume.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    __parser.add_argument('--plane-images', dest='plane_images', nargs='+', type=str, required=True, metavar='<file name>', help='List of planar images through an imaging volume in the uncompressed TIFF image format. Their order and orientation is specified in the following arguments.')
+    __parser.add_argument('--plane-image-order', dest='image_order', default='I', choices=['R', 'L', 'A', 'P', 'I', 'S'], type=str, required=True, metavar='<order>', help='Order of the imaging planes in terms of the anatomical direction. Note that this direction specifies the origin rather than the target. Hence, if the imaging planes are ordered from inferior to superior, the order will be \'I\'.')
+    __parser.add_argument('--plane-orientation', dest='plane_orientation', nargs=2, default=['A', 'L'], choices=['R', 'L', 'A', 'P', 'I', 'S'], type=str, required=True, metavar='<orientation>', help='Orientation of the imaging planes in terms of the anatomical directions of the first (vertical) and the second (horizontal) axis. Note that an image\'s origin is in the upper left corner and that these directions specify the origins rather than the targets. Hence, if the axes go from anterior to posterior and left to right, their orientation will be \'A\' and \'L\', respectively.')
+    __parser.add_argument('--plane-rotation', dest='plane_rotation', default=0, type=float, required=False, metavar='<angle>', help='Angle of an in-plane rotation required to be added to fully align the image with its specified orientation. The angle is measured in degrees, positively in counter-clockwise direction and negatively in clockwise direction.')
+    __parser.add_argument('--plane-spacing', dest='plane_spacing', nargs=2, default=[1., 1.], type=float, required=True, metavar='<spacing>', help='Spacing of the imaging planes along the first (vertical) and the second (horizontal) axis.')
+    __parser.add_argument('--plane-height', dest='plane_height', default=1., type=float, required=True, metavar='<height>', help='Height of the imaging planes or, equivalently, the distance between imaging planes.')
+    __parser.add_argument('--as-mask', dest='as_mask', action='store_true', required=False, help='Indicates whether to create this volume image as a mask. In this case, the image intesities will be normalised and afterwards a threshold applied to produce a binary mask.')
+    __parser.add_argument('--output-file', dest='output_file', type=str, required=True, metavar='<path>', help='Path for the output file. If the files does already exist, it will not be overwritten and rather an error thrown.')
     
     
     
     kwargs = vars(__parser.parse_args())
 
     # ********************************************************************************
-    # Include default parameters
+    # Preprocess arguments
 
+    kwargs['plane_rotation'] = math.radians(kwargs['plane_rotation'])
 
     # ********************************************************************************
     # Execute main function
@@ -72,7 +71,9 @@ if __name__ == "__main__":
     try:
         volume_image_creation(**kwargs)
     except:
-        print('An error occured. Operation could not be completed.', file=sys.stderr)
+        print('', file=sys.stdout)
+        print('', file=sys.stdout)
+        print('An error occured. Operation could not be completed.', file=sys.stdout)
         print(traceback.format_exc(), file=sys.stderr)
         sys.exit(1)
 
