@@ -8,7 +8,7 @@ The idea of this work is to first register a volumetric summary image to larval 
 
 As the common reference atlas, we use the Z-BRAIN atlas, which has been created by the group around Florian Engert at Harvard University and has since become widely adopted in the zebrafish community as an atlas for neuroanatomical features of the larval zebrafish (Randlett et al., 2015).
 
-Note, that we use the atlas in its initial form (Z-BRAIN 1.0), consisting of three files, the Z-BRAIN reference brain stack (`Ref20131120pt14pl2.nrrd`), an anatomy label database (`AnatomyLabelDatabase.hdf5`), and a mask database (`MaskDatabase.mat`). Unfortunately, this dataset seems not to be publicly available anymore.
+Note, that we use the atlas in its initial form (Z-BRAIN 1.0), consisting of three files, the Z-BRAIN reference brain stack (`Ref20131120pt14pl2.nrrd`), an anatomy label database (`AnatomyLabelDatabase.hdf5`), and a mask database (`MaskDatabase.mat`). These files can be obtained from the official [Z-BRAIN project](https://engertlab.fas.harvard.edu/LegacyZ-Brain/downloads.html) website.
 
 For the image processing, we use the *Advanced Normalization Tools* (ANTs) and the associated Python libraries, *Advanced Normalization Tools for Python* (ANTsPy) (Avants et al.).
 
@@ -26,7 +26,7 @@ Beyond that and as mentioned above, we require the Z-BRAIN 1.0 dataset for the r
 
 ## Usage
 
-In the following, we will briefly describe the main steps of our pipeline.
+In the following, we will briefly describe the main steps of our pipeline. While the meaning of most of the command line arguments should be clear from context, we refer to the help pages of the different functions for their definition.
 
 1. In order to register the data to the Z-BRAIN atlas, we need to extract the relevant data from the Z-BRAIN dataset and bring it into a form that's most suitable for processing.
    
@@ -41,7 +41,7 @@ In the following, we will briefly describe the main steps of our pipeline.
    ![](README/volumeImageCreation-schematic.png)
 
    ```
-   python volumeImageCreation.py --plane-images Data/<imaging dataset>/*.tif --plane-image-order S --plane-orientation P R --plane-rotation 0 --plane-spacing 0.2426 0.2426 --plane-height 7.5 --output-file Data/<imaging dataset>/<imaging dataset>.nrrd
+   python volumeImageCreation.py --plane-images Data/<imaging dataset>/*.tif --plane-image-order S --plane-orientation P R --plane-spacing 0.2426 0.2426 --plane-height 7.5 --output-file Data/<imaging dataset>/<imaging dataset>.nrrd
    ```
 
    This will combine the set of images `Data/<imaging dataset>/*.tif` given their spatial resolution into a volumetric image `Data/<imaging dataset>/<imaging dataset>.nrrd`. Here the set of images is interpreted as ordered from superior to inferior and the individual images are oriented so that the vertical axis goes from posterior to anterior and the horizontal axis from right to left, with no in-plane rotation.
@@ -68,13 +68,13 @@ In the following, we will briefly describe the main steps of our pipeline.
 
 This the completes pipeline. The warped masks can be used directly to look-up the affiliation of a point in the moving image to a certain brain region and thus yields a segmentation.
 
-For various reasons, it one might want to export images of the segmentation.
+5. For various reasons, we might want to export images of the segmentation.
 
-```
-python segmentationExport.py --moving-data-directory Data/<imaging dataset> --moving-image <imaging dataset>.nrrd --plane-order I --plane-orientation A L --output-file-format <output directory>/Plane-{} --export-format image --right-hemisphere-mask "Hemispheres :: Right"
-```
+   ```
+   python segmentationExport.py --moving-data-directory Data/<imaging dataset> --moving-image <imaging dataset>.nrrd --plane-order I --plane-orientation A L --output-file-format <output directory>/Plane-{} --export-format image --right-hemisphere-mask "Hemispheres :: Right"
+   ```
 
-This will take every mask of the moving image and extracts their contours in planes along a principal axis and writes them to image files. These can be either JSON files for [labelme](https://github.com/wkentaro/labelme) or simple image files in the PNG format. A mask for the right hemisphere, `Hemispheres :: Right`, is used to distinguish between regions in the left and right hemisphere. The images will be ordered from inferior to superior and oriented so that the vertical axis goes from anterior to posterior and the horizontal axis from left to right.
+   This will take every mask of the moving image and extracts their contours in planes along a principal axis and writes them to image files. These can be either JSON files for [labelme](https://github.com/wkentaro/labelme) or simple image files in the PNG format. A mask for the right hemisphere, `Hemispheres :: Right`, is used to distinguish between regions in the left and right hemisphere. The images will be ordered from inferior to superior and oriented so that the vertical axis goes from anterior to posterior and the horizontal axis from left to right.
 
 ## References
 
