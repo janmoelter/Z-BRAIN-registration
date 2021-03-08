@@ -15,8 +15,6 @@ __all__ = ['from_sagittal_image_stack'
            'to_coronal_image_stack'
            'to_transverse_image_stack'
            'to_image_stack'
-           'from_image_stack__'
-           'to_image_stack__',
            'interpolate_image_stack',
            'load',
            'save',
@@ -260,7 +258,7 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_ro
         raise TypeError('`image_height` is expected to be either of type int or float.')
 
     if not all([len(_.shape) == 2 for _ in image_stack]):
-        raise TypeError('`image_stack` is expected to contain only arrays of dimension 2.')
+        raise ValueError('`image_stack` is expected to contain only arrays of dimension 2.')
         
     if not len(set([_.shape for _ in image_stack])) == 1:
         raise ValueError('`image_stack` is expected to contain only elements with the same shape.')
@@ -884,17 +882,19 @@ def mask_optimisation(mask, dilation_erosion_radius=None, min_connected_componen
     return __mask.astype('uint8')
 
 
-def find_mask_contours(mask, orientation='transverse', segment_length=0., use_voxels=False, include_holes=True):
+def find_mask_contours(image_stack, image_stack_spacing, segment_length=0., use_voxels=False, include_holes=True):
     """
-    Finds contours of the connected components of a mask image.
+    ********************************************************************************
+    Finds contours of the connected components of a (mask) image stack.
     
     Parameters
     ----------
-    mask : ants.core.ants_image.ANTsImage
-        Mask image.
-    orientation : str
-        Orientation of the contour stack, that can be either 'sagittal', 'coronal',
-        or 'transverse'. Default is 'transverse'.
+    image_stack : list of (H,W) ndarray
+        List of 2-dimensional image rasters.
+    image_stack_spacing : list or tuple of float or int
+        Spacing of the image stack. The first value indicates the height of the
+        images in the stack, and the last two values the spacing of the image planes
+        along their first and second axis, respectively.
     segment_length : float
         Intended length of the line segments along the contour. Default is 0.
     use_voxels : bool
@@ -909,36 +909,27 @@ def find_mask_contours(mask, orientation='transverse', segment_length=0., use_vo
         Contours of the boundaries of the connected components.
     """
     
-    if not type(mask) is ants.core.ants_image.ANTsImage:
-        raise TypeError('`mask` is expected to be of type ants.core.ants_image.ANTsImage.')
+    if not (type(image_stack) in [list, tuple] and all([type(_) is numpy.ndarray for _ in image_stack])):
+        raise TypeError('`image_stack` is expected to be of type list with elements of type numpy.ndarray.')
 
-    if not type(orientation) is str:
-        raise TypeError('`orientation` is expected to be of type str.')
+    if not (type(image_stack_spacing) in [list, tuple] and all([type(_) in [float, int] for _ in image_stack_spacing])):
+        raise TypeError('`image_stack_spacing` is expected to be of type list with elements of type float or int.')
 
     if not type(segment_length) in [int, float]:
         raise TypeError('`segment_length` is expected to either be of type float or int.')
     
-    if not mask.dimension in [2, 3]:
-        raise ValueError('`mask` is expected to be of dimension 2 or 3.')
+    if not all([len(_.shape) == 2 for _ in image_stack]):
+        raise ValueError('`image_stack` is expected to contain only arrays of dimension 2.')
 
-    if not orientation in ['sagittal', 'coronal', 'transverse']:
-        raise ValueError('`orientation` is expected to be either ''sagittal'', ''coronal'', or ''transverse''.')
+    if not len(image_stack_spacing) == 3:
+        raise ValueError('`image_stack_spacing` is expected to contain three elements.')
 
     if not segment_length >= 0:
         raise ValueError('`segment_length` is expected to be non-negative.')
     
 
-    
 
-    if orientation == 'sagittal':
-        __image_stack, __image_stack_spacing = to_sagittal_image_stack(mask, return_spacing=True)
-    elif orientation == 'coronal':
-        __image_stack, __image_stack_spacing = to_coronal_image_stack(mask, return_spacing=True)
-    elif orientation == 'transverse':
-        __image_stack, __image_stack_spacing = to_transverse_image_stack(mask, return_spacing=True)
-
-
-    contours = [None] * len(__image_stack)
+    contours = [None] * len(image_stack)
 
     def component_contour(regionprop, inc_holes=include_holes):
     
@@ -958,16 +949,16 @@ def find_mask_contours(mask, orientation='transverse', segment_length=0., use_vo
 
         return contour
 
-    for i in range(len(__image_stack)):
+    for i in range(len(image_stack)):
 
         __contours = []
 
-        for regionprop in skimage.measure.regionprops(skimage.measure.label(__image_stack[i])):
+        for regionprop in skimage.measure.regionprops(skimage.measure.label(image_stack[i])):
             __contours += component_contour(regionprop)
 
         if not (segment_length is None or segment_length == 0):
 
-            w = numpy.array(__image_stack_spacing[1:])
+            w = numpy.array(image_stack_spacing[1:])
             if use_voxels:
                 w[:] = 1.
             norm = lambda x : math.sqrt(numpy.sum((w * x)**2))

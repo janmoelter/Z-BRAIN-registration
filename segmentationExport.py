@@ -21,7 +21,7 @@ import PIL
 from Modules import VolumeImagery
 
 
-def segmentation_export(moving_data_directory, moving_image, output_file_format, export_format, masks=None, axis=2, right_hemisphere_mask=None, verbose=None):
+def segmentation_export(moving_data_directory, moving_image, image_order, image_orientation, output_file_format, export_format, masks=None, right_hemisphere_mask=None, verbose=None):
 
     if not os.path.isdir(moving_data_directory):
         raise FileNotFoundError('Moving image data directory does not exist.')
@@ -65,7 +65,6 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
     
     
     find_mask_contours__kwargs = {
-        'orientation': 'transverse',
         'segment_length': 0,
         'use_voxels': False,
         'include_holes': True,
@@ -106,19 +105,26 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
         __mask_image = __mask_image.reorient_image2(orientation=reference_image.orientation)
         
         if __RH_mask_image is None:
-            region_contours[mask] = VolumeImagery.find_mask_contours(__mask_image, **find_mask_contours__kwargs)
+            __image_stack, __image_stack_spacing = VolumeImagery.to_image_stack(__mask_image, stack_orientation=image_order, image_orientation=image_orientation, return_spacing=True)
+
+            region_contours[mask] = VolumeImagery.find_mask_contours(__image_stack, __image_stack_spacing, **find_mask_contours__kwargs)
         else:
             region_contours[mask] = {}
             
             __mask_image_RH = __mask_image.new_image_like(numpy.bitwise_and(__RH_mask_image.view(), __mask_image.view()))
-            region_contours[mask]['right'] = VolumeImagery.find_mask_contours(__mask_image_RH, **find_mask_contours__kwargs)
+            __image_stack, __image_stack_spacing = VolumeImagery.to_image_stack(__mask_image_RH, stack_orientation=image_order, image_orientation=image_orientation, return_spacing=True)
             del __mask_image_RH
+            region_contours[mask]['right'] = VolumeImagery.find_mask_contours(__image_stack, __image_stack_spacing, **find_mask_contours__kwargs)
             
             __mask_image_LH = __mask_image.new_image_like(numpy.bitwise_and(1 - __RH_mask_image.view(), __mask_image.view()))
-            region_contours[mask]['left'] = VolumeImagery.find_mask_contours(__mask_image_LH, **find_mask_contours__kwargs)
+            __image_stack, __image_stack_spacing = VolumeImagery.to_image_stack(__mask_image_LH, stack_orientation=image_order, image_orientation=image_orientation, return_spacing=True)
             del __mask_image_LH
+            region_contours[mask]['left'] = VolumeImagery.find_mask_contours(__image_stack, __image_stack_spacing, **find_mask_contours__kwargs)
+            
             
         del __mask_image
+        del __image_stack
+        del __image_stack_spacing
     
     if not __RH_mask_image is None:
         del __RH_mask_image
@@ -129,7 +135,7 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
     if verbose is not None and verbose:
         print('=== {} ==='.format('Export segmentation images'), file=sys.stdout)
 
-    reference_image_stack, reference_image_spacing = VolumeImagery.to_transverse_image_stack(reference_image, return_spacing=True)
+    reference_image_stack, reference_image_spacing = VolumeImagery.to_image_stack(reference_image, stack_orientation=image_order, image_orientation=image_orientation, return_spacing=True)
     
     if export_format.lower() == 'image':
         if not os.path.splitext(output_file_format)[1].upper() in ['.PNG']:
@@ -137,16 +143,16 @@ def segmentation_export(moving_data_directory, moving_image, output_file_format,
 
         reference_image_stack_aspect_ratio = (reference_image_spacing[2] * reference_image_stack[0].shape[1]) / (reference_image_spacing[1] * reference_image_stack[0].shape[0])
         
-        return png_segmentation_export(reference_image_stack, region_contours, axis=axis, output_file_format=output_file_format, aspect_ratio=reference_image_stack_aspect_ratio, contour_cmap='plasma', verbose=verbose)
+        return png_segmentation_export(reference_image_stack, region_contours, output_file_format=output_file_format, aspect_ratio=reference_image_stack_aspect_ratio, contour_cmap='plasma', verbose=verbose)
         
     if export_format.lower() == 'labelme':
         if not os.path.splitext(output_file_format)[1].upper() in ['.JSON']:
             output_file_format += '.json'
             
-        return labelme_segmentation_export(reference_image_stack, region_contours, axis=axis, output_file_format=output_file_format, verbose=verbose)
+        return labelme_segmentation_export(reference_image_stack, region_contours, output_file_format=output_file_format, verbose=verbose)
 
 
-def labelme_segmentation_export(reference_image_stack, region_contours, axis, output_file_format, verbose=None):
+def labelme_segmentation_export(reference_image_stack, region_contours, output_file_format, verbose=None):
     
     def array_to_b64image(image_array, format='PNG'):
         
@@ -207,7 +213,7 @@ def labelme_segmentation_export(reference_image_stack, region_contours, axis, ou
     
     return __files
 
-def png_segmentation_export(reference_image_stack, region_contours, axis, output_file_format, aspect_ratio=1, contour_cmap='plasma', verbose=None):
+def png_segmentation_export(reference_image_stack, region_contours, output_file_format, aspect_ratio=1, contour_cmap='plasma', verbose=None):
     
     __counter_length = math.ceil(math.log10(len(reference_image_stack)))
     __files = []
@@ -274,10 +280,11 @@ if __name__ == "__main__":
     __parser = argparse.ArgumentParser()
     __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True)
     __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True)
+    __parser.add_argument('--plane-order', dest='image_order', default='I', type=str, required=False)
+    __parser.add_argument('--plane-orientation', dest='image_orientation', nargs='+', default=['A', 'L'], type=str, required=False)
     __parser.add_argument('--output-file-format', dest='output_file_format', type=str, required=True)
     __parser.add_argument('--export-format', dest='export_format', type=str, required=True)
     __parser.add_argument('--masks', dest='masks', nargs='+', default=None, type=str, required=False)
-    __parser.add_argument('--axis', dest='axis', default=2, type=int, required=False)
     __parser.add_argument('--right-hemisphere-mask', default=None, type=str, required=False)
     
     kwargs = vars(__parser.parse_args())
