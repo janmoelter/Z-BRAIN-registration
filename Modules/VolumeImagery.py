@@ -80,7 +80,7 @@ def from_sagittal_image_stack(image_stack, image_rotation=0, image_spacing=(1.,1
     """
     
     
-    __IMAGE = from_image_stack(image_stack, 'L', ('I', 'A'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
+    __IMAGE = from_image_stack(image_stack, 'R', ('S', 'P'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
     
     return __IMAGE
 
@@ -123,7 +123,7 @@ def from_coronal_image_stack(image_stack, image_rotation=0, image_spacing=(1.,1.
     """
     
     
-    __IMAGE = from_image_stack(image_stack, 'P', ('I', 'R'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
+    __IMAGE = from_image_stack(image_stack, 'A', ('S', 'L'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
     
     return __IMAGE
 
@@ -166,7 +166,7 @@ def from_transverse_image_stack(image_stack, image_rotation=0, image_spacing=(1.
     """
     
     
-    __IMAGE = from_image_stack(image_stack, 'S', ('P', 'R'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
+    __IMAGE = from_image_stack(image_stack, 'I', ('A', 'L'), image_rotation=image_rotation, image_spacing=image_spacing, image_height=image_height)
     
     return __IMAGE
 
@@ -182,13 +182,13 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_ro
     stack_orientation : str
         Stack orientation in terms of anatomical directions. Possible values are 'R'
         or 'L' for a sagittal stack, 'A' or 'P' for a coronal stack, and 'I' or 'S'
-        for a transverse stack. Note that these direction specify the target rather
-        than the origin. Hence, for a transverse stack in order from inferior to
-        superior the direction specifier is 'S'.
+        for a transverse stack. Note that these direction specify the origin rather
+        than the target. Hence, for a transverse stack in order from inferior to
+        superior the direction specifier is 'I'.
     image_orientation : (2,) tuple of str
         Image orientation in terms of anatomical directions of the two axes. Possible
         values are 'R', 'L', 'A', 'P', 'I' and 'S'. Similarly as with the stack
-        orientation, these directions specify the targets rather than the origin.
+        orientation, these directions specify the origins rather than the targets.
         Note also that an image's vertical axis is the first and the horizontal axis
         the second. Hence, for a transverse image in standard orientation
         
@@ -200,7 +200,7 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_ro
                   └───────┘
             [-1,0]         [-1,-1]
             
-        the image orientation is ('P', 'R').
+        the image orientation is ('A', 'L').
             
         Similarly, for a sagittal image in standard orientation
         
@@ -212,7 +212,7 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_ro
                   └───────┘
             [-1,0]         [-1,-1]
             
-        it is ('I', 'A') and for a coronal image in standard orientation
+        it is ('S', 'P') and for a coronal image in standard orientation
         
              [0,0]         [0,-1]
                   ┌───────┐
@@ -222,7 +222,7 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_ro
                   └───────┘
             [-1,0]         [-1,-1]
             
-        it is ('I', 'R').
+        it is ('S', 'L').
     image_rotation : float or int
         Rotation angle of the image. This is the angle of rotation require to
         properly align the image with its specified orientation (Units: 1rad). Note
@@ -272,12 +272,7 @@ def from_image_stack(image_stack, stack_orientation, image_orientation, image_ro
         pass
     
     
-    def invert_orientation_specifier(orientation):
-        __INVERSION_DICTIONARY = {'R': 'L', 'L': 'R', 'A': 'P', 'P': 'A', 'I': 'S', 'S': 'I'}
-        return ''.join([__INVERSION_DICTIONARY[_] for _ in orientation])
-    
-    
-    __IMAGE_ARRAY_ORIENTATION = invert_orientation_specifier(stack_orientation + ''.join(image_orientation))
+    __IMAGE_ARRAY_ORIENTATION = stack_orientation + ''.join(image_orientation)
     __IMAGE_ARRAY = numpy.stack(image_stack, axis=0)
     # `__IMAGE_ARRAY` is now in a natural orientation for the image stack.
     
@@ -328,7 +323,7 @@ def to_sagittal_image_stack(image, indices=None, return_spacing=False):
     """
     
     
-    return to_image_stack(image, 'L', ('I', 'A'), indices=indices, return_spacing=return_spacing)
+    return to_image_stack(image, 'R', ('S', 'P'), indices=indices, return_spacing=return_spacing)
 
 def to_coronal_image_stack(image, indices=None, return_spacing=False):
     """
@@ -360,7 +355,7 @@ def to_coronal_image_stack(image, indices=None, return_spacing=False):
     """
     
     
-    return to_image_stack(image, 'P', ('I', 'R'), indices=indices, return_spacing=return_spacing)
+    return to_image_stack(image, 'A', ('S', 'L'), indices=indices, return_spacing=return_spacing)
 
 def to_transverse_image_stack(image, indices=None, return_spacing=False):
     """
@@ -393,7 +388,7 @@ def to_transverse_image_stack(image, indices=None, return_spacing=False):
     """
     
     
-    return to_image_stack(image, 'S', ('P', 'R'), indices=indices, return_spacing=return_spacing)
+    return to_image_stack(image, 'I', ('A', 'L'), indices=indices, return_spacing=return_spacing)
 
 def to_image_stack(image, stack_orientation, image_orientation, indices=None, return_spacing=False):
     """
@@ -406,13 +401,13 @@ def to_image_stack(image, stack_orientation, image_orientation, indices=None, re
     stack_orientation : str
         Stack orientation in terms of anatomical directions. Possible values are 'R'
         or 'L' for a sagittal stack, 'A' or 'P' for a coronal stack, and 'I' or 'S'
-        for a transverse stack. Note that these direction specify the target rather
-        than the origin. Hence, for a transverse stack in order from inferior to
-        superior the direction specifier is 'S'.
+        for a transverse stack. Note that these direction specify the origin rather
+        than the target. Hence, for a transverse stack in order from inferior to
+        superior the direction specifier is 'I'.
     image_orientation : (2,) tuple of str
         Image orientation in terms of anatomical directions of the two axes. Possible
         values are 'R', 'L', 'A', 'P', 'I' and 'S'. Similarly as with the stack
-        orientation, these directions specify the targets rather than the origin.
+        orientation, these directions specify the origins rather than the targets.
         Note also that an image's vertical axis is the first and the horizontal axis
         the second. Hence, for a transverse image in standard orientation
         
@@ -424,7 +419,7 @@ def to_image_stack(image, stack_orientation, image_orientation, indices=None, re
                   └───────┘
             [-1,0]         [-1,-1]
             
-        the image orientation is ('P', 'R').
+        the image orientation is ('A', 'L').
             
         Similarly, for a sagittal image in standard orientation
         
@@ -436,7 +431,7 @@ def to_image_stack(image, stack_orientation, image_orientation, indices=None, re
                   └───────┘
             [-1,0]         [-1,-1]
             
-        it is ('I', 'A') and for a coronal image in standard orientation
+        it is ('S', 'P') and for a coronal image in standard orientation
         
              [0,0]         [0,-1]
                   ┌───────┐
@@ -446,7 +441,7 @@ def to_image_stack(image, stack_orientation, image_orientation, indices=None, re
                   └───────┘
             [-1,0]         [-1,-1]
             
-        it is ('I', 'R').
+        it is ('S', 'L').
     indices : list of int
         Indices of images to include in the stack.
     return_spacing : bool
@@ -475,15 +470,9 @@ def to_image_stack(image, stack_orientation, image_orientation, indices=None, re
     
     if not all([_ in ['R', 'L', 'A', 'P', 'I', 'S'] for _ in [stack_orientation] + list(image_orientation)]):
         raise ValueError('`stack_orientation` and `image_orientation` are expected to consist only of letters ''R'', ''L'', ''A'', ''P'', ''I'', and ''S''.')
-
-        
-        
-    def invert_orientation_specifier(orientation):
-        __INVERSION_DICTIONARY = {'R': 'L', 'L': 'R', 'A': 'P', 'P': 'A', 'I': 'S', 'S': 'I'}
-        return ''.join([__INVERSION_DICTIONARY[_] for _ in orientation])
     
     
-    __IMAGE_ARRAY_ORIENTATION = invert_orientation_specifier(stack_orientation + ''.join(image_orientation))
+    __IMAGE_ARRAY_ORIENTATION = stack_orientation + ''.join(image_orientation)
     
     __IMAGE = ants.reorient_image2(image, orientation=__IMAGE_ARRAY_ORIENTATION)
     __IMAGE_ARRAY = __IMAGE.view()
@@ -738,7 +727,8 @@ def create_orientation_test_image(output_path=None):
     ORIENTATION_image[:,:,:] = 255 * numpy.clip(ORIENTATION_image[:,:,:], 0, 1)
     ORIENTATION_image = ORIENTATION_image.astype('uint8')
     
-    save(ORIENTATION_image, output_path)
+    if output_path is not None:
+        save(ORIENTATION_image, output_path)
 
     return ORIENTATION_image
 

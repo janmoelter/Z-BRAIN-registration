@@ -12,7 +12,7 @@ import tifffile
 from Modules import VolumeImagery
     
     
-def volume_image_creation(plane_images, image_order='S', plane_orientation=('P', 'R'), plane_rotation=0, plane_spacing=(1.,1.), plane_height=1., as_mask=False, output_file='out.nrrd'):
+def volume_image_creation(plane_images, image_order='I', plane_orientation=('A', 'L'), plane_rotation=0, plane_spacing=(1.,1.), plane_height=1., as_mask=False, output_file='out.nrrd'):
     
     if not all([os.path.isfile(_) for _ in plane_images]):
         raise FileNotFoundError('At least one plane image cannot be found.')
