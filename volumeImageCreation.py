@@ -50,11 +50,11 @@ if __name__ == "__main__":
     
     __parser = argparse.ArgumentParser()
     __parser.add_argument('--plane-images', dest='plane_images', nargs='+', type=str, required=True)
-    __parser.add_argument('--image-order', dest='image_order', default='I', type=str, required=False)
-    __parser.add_argument('--plane-orientation', dest='plane_orientation', nargs='+', default=['A', 'L'], type=str, required=False)
-    __parser.add_argument('--plane-rotation', dest='plane_rotation', default=1., type=float, required=False)
+    __parser.add_argument('--plane-image-order', dest='image_order', default='I', type=str, required=True)
+    __parser.add_argument('--plane-orientation', dest='plane_orientation', nargs='+', default=['A', 'L'], type=str, required=True)
+    __parser.add_argument('--plane-rotation', dest='plane_rotation', default=0, type=float, required=False)
     __parser.add_argument('--plane-spacing', dest='plane_spacing', nargs='+', default=[1., 1.], type=float, required=True)
-    __parser.add_argument('--plane-height', dest='plane_height', default=1., type=float, required=False)
+    __parser.add_argument('--plane-height', dest='plane_height', default=1., type=float, required=True)
     __parser.add_argument('--as-mask', dest='as_mask', action='store_true', required=False)
     __parser.add_argument('--output-file', dest='output_file', type=str, required=True)
     

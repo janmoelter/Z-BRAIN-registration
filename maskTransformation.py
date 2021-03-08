@@ -7,8 +7,6 @@ import json
 
 import ants
 
-import skimage
-
 from Modules import BrainAtlas
 from Modules import VolumeImagery
 

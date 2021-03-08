@@ -41,10 +41,10 @@ In the following, we will briefly describe the main steps of our pipeline.
    ![](README/volumeImageCreation-schematic.png)
 
    ```
-   python volumeImageCreation.py --plane-images Data/<imaging dataset>/Plane*__mean.tif --reverse-order --plane-spacing 0.2426 0.2426 --plane-height 7.5 --plane-rotation 2 --output-file Data/<imaging dataset>/<imaging dataset>.nrrd
+   python volumeImageCreation.py --plane-images Data/<imaging dataset>/*.tif --plane-image-order S --plane-orientation P R --plane-rotation 0 --plane-spacing 0.2426 0.2426 --plane-height 7.5 --output-file Data/<imaging dataset>/<imaging dataset>.nrrd
    ```
 
-   This will combine the set of images `Data/<imaging dataset>/Plane*__mean.tif` given their spatial resolution into a volumetric image `Data/<imaging dataset>/<imaging dataset>.nrrd`.
+   This will combine the set of images `Data/<imaging dataset>/*.tif` given their spatial resolution into a volumetric image `Data/<imaging dataset>/<imaging dataset>.nrrd`. Here the set of images is interpreted as ordered from superior to inferior and the individual images are oriented so that the vertical axis goes from posterior to anterior and the horizontal axis from right to left, with no in-plane rotation.
 
 3. Given the reference atlas created above and the moving image, we can perform the registration. For the registration, we use the SynQuick['s'] transformation (Favre-Bulle et al., 2018).
 
@@ -66,7 +66,15 @@ In the following, we will briefly describe the main steps of our pipeline.
 
    This will take every mask of a brain region and transform it into a mask for the moving image. Following the transformation, this also applies an optimization procedure which first performs a dilation-erosion sequence and second removes small connected components.
 
-   This the completes pipeline. The warped masks can be used directly to look-up the affiliation of a point in the moving image to a certain brain region and thus yields a segmentation.
+This the completes pipeline. The warped masks can be used directly to look-up the affiliation of a point in the moving image to a certain brain region and thus yields a segmentation.
+
+For various reasons, it one might want to export images of the segmentation.
+
+```
+python segmentationExport.py --moving-data-directory Data/<imaging dataset> --moving-image <imaging dataset>.nrrd --plane-order I --plane-orientation A L --output-file-format <output directory>/Plane-{} --export-format image --right-hemisphere-mask "Hemispheres :: Right"
+```
+
+This will take every mask of the moving image and extracts their contours in planes along a principal axis and writes them to image files. These can be either JSON files for [labelme](https://github.com/wkentaro/labelme) or simple image files in the PNG format. A mask for the right hemisphere, `Hemispheres :: Right`, is used to distinguish between regions in the left and right hemisphere. The images will be ordered from inferior to superior and oriented so that the vertical axis goes from anterior to posterior and the horizontal axis from left to right.
 
 ## References
 
