@@ -4,7 +4,7 @@ In this repository, we establish a pipeline for the registration and segmentatio
 
 ## Overview
 
-The idea of this work is to first register a volumetric summary image to larval zebrafish's brain to a common reference atlas. In a second step, the transformation which describes this registration and specifically its inverse is used to map the brain regions that are defined in the reference atlas back which results in a segmentation of the data.
+The idea of this work is to first register a summary volume image of a larval zebrafish's brain to a common reference atlas. In a second step, the transformation which describes this registration and specifically its inverse is used to map the brain regions that are defined in the reference atlas back which results in a segmentation of the data.
 
 As the common reference atlas, we use the Z-BRAIN atlas, which has been created by the group around Florian Engert at Harvard University and has since become widely adopted in the zebrafish community as an atlas for neuroanatomical features of the larval zebrafish (Randlett et al., 2015).
 
@@ -18,7 +18,7 @@ The code was written in Python 3 and tested under Python 3.9.1. In addition, the
 
 * ANTsPyX (`antspyx` - tested under version 0.2.6, compiled from source) with its dependencies (NumPy, SciPy, Pandas, Matplotlib, scikit-image, scikit-learn, etc.),
 * HDF5 for Python (`h5py` - tested  under version 2.10.0), and
-* Tifffile (`tifffile` - tested under version 2020.12.8)
+* Tifffile (`tifffile` - tested under version 2021.3.5)
 
 are required.
 
@@ -36,15 +36,15 @@ In the following, we will briefly describe the main steps of our pipeline. While
 
    This will create the reference atlas as the spatial resolution of 2µm per pixel in every spatial direction in the directory `Data/Atlases/Z-BRAIN 2x2x2` that we will use in the following.
 
-2. If the neuroimaging dataset consists of summary images for the individual imaging planes, we need to combine those into a volumetric image (the "moving image").
+2. If the neuroimaging dataset consists of summary images for the individual imaging planes, we need to combine those into a volume image (the "moving image").
 
    ![](README/volumeImageCreation-schematic.png)
 
    ```
-   python volumeImageCreation.py --plane-images Data/<imaging dataset>/*.tif --plane-image-order S --plane-orientation P R --plane-spacing 0.2426 0.2426 --plane-height 7.5 --output-file Data/<imaging dataset>/<imaging dataset>.nrrd
+   python volumeImage.py from-plane-images --plane-images Data/<imaging dataset>/*.tif --plane-image-order S --plane-orientation P R --plane-spacing 0.2426 0.2426 --plane-height 7.5 --output-file Data/<imaging dataset>/<imaging dataset>.nrrd
    ```
 
-   This will combine the set of images `Data/<imaging dataset>/*.tif` given their spatial resolution into a volumetric image `Data/<imaging dataset>/<imaging dataset>.nrrd`. Here the set of images is interpreted as ordered from superior to inferior and the individual images are oriented so that the vertical axis goes from posterior to anterior and the horizontal axis from right to left, with no in-plane rotation.
+   This will combine the set of images `Data/<imaging dataset>/*.tif` given their orientation and spatial resolution into a volume image `Data/<imaging dataset>/<imaging dataset>.nrrd`. Here the set of images is interpreted as ordered from superior to inferior and the individual images are oriented so that the vertical axis goes from posterior to anterior and the horizontal axis from right to left, with no in-plane rotation.
 
 3. Given the reference atlas created above and the moving image, we can perform the registration. For the registration, we use the SynQuick['s'] transformation (Favre-Bulle et al., 2018).
 
@@ -68,7 +68,15 @@ In the following, we will briefly describe the main steps of our pipeline. While
 
 This the completes pipeline. The warped masks can be used directly to look-up the affiliation of a point in the moving image to a certain brain region and thus yields a segmentation.
 
-5. For various reasons, we might want to export images of the segmentation.
+5. Depending on how the imaging data is processed following its registration and segmentation it can be useful to work with stacks of plane images again rather than volume images.
+
+   ```
+   python volumeImage.py to-plane-images --volume-image Data/<imaging dataset>/<imaging dataset>.nrrd --plane-image-order S --plane-orientation P R --output-file Data/<imaging dataset>/<imaging dataset>.tif
+   ```
+
+   This will create stack of plane images in order from superior to inferior and the individual images oriented so that the vertical axis goes from posterior to anterior and the horizontal axis from right to left and save them in a Multipage-TIFF file.
+
+6. For various reasons, we might want to export images of the segmentation.
 
    ```
    python segmentationExport.py --moving-data-directory Data/<imaging dataset> --moving-image <imaging dataset>.nrrd --plane-order I --plane-orientation A L --output-file-format <output directory>/Plane-{} --export-format image --right-hemisphere-mask "Hemispheres :: Right"
