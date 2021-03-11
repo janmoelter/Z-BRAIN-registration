@@ -2,6 +2,7 @@ import os
 import sys
 
 import traceback
+import warnings
 
 import math
 
@@ -129,6 +130,9 @@ if __name__ == "__main__":
     __parser_subcommand = kwargs.pop('subcommand')
 
     if __parser_subcommand == 'from-plane-images':
+        if abs(kwargs['plane_rotation']) > 45:
+            warnings.warn('The specified in-plane rotation angle exceeds +/-45°. It is possible and recommended to choose the plane orientation differently which will in turn require a smaller in-plane rotation angle.', UserWarning)
+
         kwargs['plane_rotation'] = math.radians(kwargs['plane_rotation'])
 
     if __parser_subcommand == 'to-plane-images':
