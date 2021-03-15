@@ -52,23 +52,20 @@ def registration(reference_atlas_directory, atlas_registration_label, moving_dat
     # Find initial transformation
     #
 
-    #if initialisation:
-    #
-    #    if verbose is not None and verbose:
-    #        print('- {}'.format('Find initial registration transformation'), file=sys.stdout)
-    #    
-    #    kwargs = {
-    #        'image1': ants.resample_image(__reference_atlas.labels[atlas_registration_label], resample_params=(5,5,5)),
-    #        'image2': ants.resample_image(__moving_image, resample_params=(5,5,5)),
-    #        'transform': 'Affine',
-    #        'local_search_iterations': 10,
-    #        'thetas': numpy.linspace(-5, 5, 5),
-    #        'thetas2': numpy.linspace(-5, 5, 5),
-    #        'thetas3': numpy.linspace(-5, 5, 5),
-    #        'txfn': os.path.join(moving_data_directory, 'registration', 'initialization.mat'),
-    #    }
-    #    
-    #    ants.invariant_image_similarity(**kwargs)
+    if initialisation:
+    
+        if verbose is not None and verbose:
+            print('- {}'.format('Find initial registration transformation'), file=sys.stdout)
+        
+        kwargs = {
+            'image1': ants.resample_image(__reference_atlas.labels[atlas_registration_label], resample_params=(5,5,5)),
+            'image2': ants.resample_image(__moving_image, resample_params=(5,5,5)),
+            'transform': 'Rigid',
+            'local_search_iterations': 10,
+            'txfn': os.path.join(moving_data_directory, 'registration', 'initialization.mat'),
+        }
+        
+        ants.invariant_image_similarity(**kwargs)
     
     # ********************************************************************************
     # SyNQuick Registration
@@ -88,8 +85,8 @@ def registration(reference_atlas_directory, atlas_registration_label, moving_dat
         'verbose': True
     }
 
-    #if initialisation and os.path.isfile(os.path.join(moving_data_directory, 'registration', 'initialization.mat')):
-    #    kwargs['initial_transform'] = os.path.join(moving_data_directory, 'registration', 'initialization.mat')
+    if initialisation and os.path.isfile(os.path.join(moving_data_directory, 'registration', 'initialization.mat')):
+        kwargs['initial_transform'] = os.path.join(moving_data_directory, 'registration', 'initialization.mat')
     
     ants.registration(**kwargs)
 
@@ -263,9 +260,6 @@ if __name__ == "__main__":
 
     # ********************************************************************************
     # Preprocess arguments
-
-    if kwargs['initialisation']:
-        kwargs.pop('initialisation')
 
     # ********************************************************************************
     # Execute main function
