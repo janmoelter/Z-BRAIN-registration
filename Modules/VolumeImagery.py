@@ -873,7 +873,7 @@ def fft_binary_dilation(array, structure=None):
     __array = numpy.copy(array)
     
     if structure is not None:
-        __array = scipy.signal.fftconvolve(__array, structure,'same') > 0.5
+        __array = scipy.signal.fftconvolve(__array.astype('float16'), structure.astype('float16'), 'same') > 0.5
     
     return __array.astype(array.dtype)
     
@@ -901,12 +901,13 @@ def fft_binary_erosion(array, structure=None):
     if not type(structure) is numpy.ndarray:
         raise TypeError('`structure` is expected to be of type numpy.ndarray.')
     
+    
     __array = numpy.copy(array)
     
     numpy.logical_not(__array, out=__array)
     
     if structure is not None:
-        __array = scipy.signal.fftconvolve(__array, structure,'same') > 0.5
+        __array = scipy.signal.fftconvolve(__array.astype('float16'), structure.astype('float16'), 'same') > 0.5
     
     numpy.logical_not(__array, out=__array)
     
