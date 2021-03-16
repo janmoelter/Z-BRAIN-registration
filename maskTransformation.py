@@ -35,7 +35,7 @@ def mask_transformation(reference_atlas_directory, atlas_masks, moving_data_dire
         print(' Directory: {}'.format(moving_data_directory), file=sys.stdout)
         print('', file=sys.stdout)
 
-    __moving_image = ants.image_read(os.path.join(moving_data_directory, moving_image))
+    __moving_image = VolumeImagery.load(os.path.join(moving_data_directory, moving_image))
     
     # Step 2: Warp atlas masks
 
@@ -58,7 +58,7 @@ def mask_transformation(reference_atlas_directory, atlas_masks, moving_data_dire
             'fixed': __moving_image,
             'moving': __reference_atlas.masks[maskname].astype('float32'),
             'transformlist': os.path.join(moving_data_directory, 'registration/transformation_InverseComposite.h5'),
-            'interpolator': 'linear'
+            'interpolator': 'genericLabel'
         }
 
         if verbose is not None and verbose:
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     __parser.add_argument('--atlas-masks', dest='atlas_masks', default=None, nargs='*', type=str, required=False, metavar='<name>', help='Names of region masks defined in the reference atlas. These masks will be transformed back to obtain masks for the corresponding regions on the moving image. If this argument is not given, all masks of the reference atlas will be transformed.')
     __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True, metavar='<path>', help='Path to the directory of a moving image.')
     __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True, metavar='<path>', help='Moving image in the directory of the moving image. This image must have been previously registered to the reference atlas.')
-    __parser.add_argument('--no-optimisation', action='store_true', required=False, help='Indicates whether to optimise the masks after the transformation. The optimisation includes a dilation-erosion procedure and removes small connected components. This generally improves the result but might require more memory.')
+    __parser.add_argument('--no-optimisation', action='store_true', required=False, help='Indicates whether to optimise the masks after the transformation. The optimisation includes a dilation-erosion procedure and removes small connected components. This generally improves the result but might require a substantial amount of memory.')
     
     kwargs = vars(__parser.parse_args())
 

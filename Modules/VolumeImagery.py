@@ -35,6 +35,8 @@ import scipy.spatial.transform
 import scipy.ndimage.morphology
 import scipy.ndimage.measurements
 
+import scipy.signal
+
 import skimage
 import skimage.measure
 
@@ -800,7 +802,7 @@ def ellipsoid(radius, dtype=numpy.uint8):
 
     Returns
     -------
-    selem : ndarray
+    _ : ndarray
         The structuring element where elements of the neighborhood are 1 and 0
         otherwise.
     """
@@ -820,6 +822,95 @@ def ellipsoid(radius, dtype=numpy.uint8):
     S = numpy.where(S > 1, 0, 1).astype(dtype)
     
     return S
+
+def is_mask(image):
+    """
+    Tests whether a given image is a binary mask.
+
+    Parameters
+    ----------
+    image : ants.core.ants_image.ANTsImage
+        Mask image.
+
+    Returns
+    -------
+    _ : bool
+    """
+
+    if not type(image) is ants.core.ants_image.ANTsImage:
+        raise TypeError('`image` is expected to be of type ants.core.ants_image.ANTsImage.')
+        
+    __VALUES = image.unique()
+    __BINARIES = numpy.array([0, 1], dtype=__VALUES.dtype)
+    
+    return all([_ in __BINARIES for _ in __VALUES])
+
+def fft_binary_dilation(array, structure=None):
+    """
+    Performs a binary dilation on a binary array given a structure element using the
+    Fast Fourier Transform.
+    
+    Parameters
+    ----------
+    array : ndarray
+        Binary array.
+    structure : ndarray
+        Binary structure element with which to perform the dilation.
+
+    Returns
+    -------
+    _ : ndarray
+        Dilated binary array.
+    """
+    
+    if not type(array) is numpy.ndarray:
+        raise TypeError('`array` is expected to be of type numpy.ndarray.')
+    
+    if not type(structure) is numpy.ndarray:
+        raise TypeError('`structure` is expected to be of type numpy.ndarray.')
+    
+    
+    __array = numpy.copy(array)
+    
+    if structure is not None:
+        __array = scipy.signal.fftconvolve(__array, structure,'same') > 0.5
+    
+    return __array.astype(array.dtype)
+    
+def fft_binary_erosion(array, structure=None):
+    """
+    Performs a binary erosion on a binary array given a structure element using the
+    Fast Fourier Transform.
+    
+    Parameters
+    ----------
+    array : ndarray
+        Binary array.
+    structure : ndarray
+        Binary structure element with which to perform the erosion.
+
+    Returns
+    -------
+    _ : ndarray
+        Eroded binary array.
+    """
+    
+    if not type(array) is numpy.ndarray:
+        raise TypeError('`array` is expected to be of type numpy.ndarray.')
+    
+    if not type(structure) is numpy.ndarray:
+        raise TypeError('`structure` is expected to be of type numpy.ndarray.')
+    
+    __array = numpy.copy(array)
+    
+    numpy.logical_not(__array, out=__array)
+    
+    if structure is not None:
+        __array = scipy.signal.fftconvolve(__array, structure,'same') > 0.5
+    
+    numpy.logical_not(__array, out=__array)
+    
+    return __array.astype(array.dtype)
 
 def mask_optimisation(mask, dilation_erosion_radius=None, min_connected_component_size=None):
     """
@@ -853,29 +944,27 @@ def mask_optimisation(mask, dilation_erosion_radius=None, min_connected_componen
     if not mask.dimension in [2, 3]:
         raise ValueError('`mask` is expected to be of dimension 2 or 3.')
     
+    
     __mask = mask.clone()
 
-    assert set(__mask.unique()) == {0, 1}, '`mask` is not binary.'
+    assert is_mask(__mask), '`mask` is not a valid mask.'
 
 
     # Step 1: Dilation-Erosion
-
-    DE_structure = ellipsoid([int(_) for _ in numpy.ceil(numpy.full(__mask.dimension, dilation_erosion_radius) / numpy.array(__mask.spacing))])
-
-    __mask[:,:,:] = scipy.ndimage.morphology.binary_dilation(__mask[:,:,:], structure=DE_structure, border_value=0).astype(__mask.dtype)
-    __mask[:,:,:] = scipy.ndimage.morphology.binary_erosion(__mask[:,:,:], structure=DE_structure, border_value=1).astype(__mask.dtype)
     
+    for x in [1, 0.2]:
+
+        ELLIPSOID = ellipsoid([int(_) for _ in numpy.ceil(numpy.full(__mask.dimension, x * dilation_erosion_radius) / numpy.array(__mask.spacing))])
+        
+        __mask[:,:,:] = fft_binary_dilation(__mask[:,:,:], structure=ELLIPSOID)
+        __mask[:,:,:] = fft_binary_erosion(__mask[:,:,:], structure=ELLIPSOID)
     
     # Step 2: Connected-Component discrimination
     
     __labeled_mask, N_labels = scipy.ndimage.measurements.label(__mask[:,:,:])
-
-    print(__mask.spacing)
-    print('*' * 80)
+    
     for _ in range(1, N_labels+1):
-        print(numpy.sum(__labeled_mask == _) * math.prod(__mask.spacing))
         if numpy.sum(__labeled_mask == _) * math.prod(__mask.spacing) < min_connected_component_size:
-            #print('Volume:', numpy.sum(__labeled_mask == _) * math.prod(__mask.spacing), '(', numpy.sum(__labeled_mask == _), ')', min_connected_component_size)
             __mask[__labeled_mask == _] = 0
 
 
@@ -926,7 +1015,6 @@ def find_mask_contours(image_stack, image_stack_spacing, segment_length=0., use_
 
     if not segment_length >= 0:
         raise ValueError('`segment_length` is expected to be non-negative.')
-    
 
 
     contours = [None] * len(image_stack)
