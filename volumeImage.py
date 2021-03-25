@@ -133,6 +133,9 @@ if __name__ == "__main__":
         if abs(kwargs['plane_rotation']) > 45:
             warnings.warn('The specified in-plane rotation angle exceeds +/-45°. It is possible and recommended to choose the plane orientation differently which will in turn require a smaller in-plane rotation angle.', UserWarning)
 
+        if abs(kwargs['plane_rotation']) == 45:
+            warnings.warn('The specified in-plane rotation angle is +/-45°. This will make the orientation of the volume image being not well-defined. It is therefore suggested to slightly decrease the angle and make it e.g. +/-44.999999° instead.', UserWarning)
+
         kwargs['plane_rotation'] = math.radians(kwargs['plane_rotation'])
 
     if __parser_subcommand == 'to-plane-images':
