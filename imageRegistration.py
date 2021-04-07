@@ -13,7 +13,7 @@ from Modules import antsX
 from Modules import BrainAtlas
 
 
-def registration(reference_atlas_directory, atlas_registration_label, moving_data_directory, moving_image, initialisation=False, verbose=None):
+def registration(reference_atlas_directory, atlas_registration_label, moving_data_directory, moving_image, transformation_model='deformable', quick=False, initialisation=False, verbose=None):
 
     if not os.path.isdir(reference_atlas_directory):
         raise FileNotFoundError('Reference atlas directory does not exist.')
@@ -68,9 +68,12 @@ def registration(reference_atlas_directory, atlas_registration_label, moving_dat
         ants.invariant_image_similarity(**kwargs)
     
     # ********************************************************************************
-    # SyNQuick Registration
+    # SyN[Quick] Registration
     #
-    # This registration procedure is used by Favre-Bulle et al. 2018 (Curr. Biol. 28).
+    # Note: The registration procedure used by Favre-Bulle et al. 2018 (Curr. Biol. 28)
+    # is the antsRegistrationSyNQuick[s]. Our approach is more general an allows one
+    # of six transforms, antsRegistrationSyN[x] or antsRegistrationSyNQuick[x] for x
+    # in 'r', 'a', or 's'.
     #
 
     if verbose is not None and verbose:
@@ -79,7 +82,7 @@ def registration(reference_atlas_directory, atlas_registration_label, moving_dat
     kwargs = {
         'fixed': __reference_atlas.labels[atlas_registration_label],
         'moving': __moving_image,
-        'type_of_transform': 'antsRegistrationSyNQuick[s]',
+        'type_of_transform': 'antsRegistrationSyN{}[{}]'.format({True: 'Quick', False: ''}[quick], {'rigid': 'r', 'affine': 'a', 'deformable': 's'}[transformation_model]),
         'write_composite_transform': True,
         'outprefix': os.path.join(moving_data_directory, 'registration', 'transformation_'),
         'verbose': True
@@ -253,7 +256,9 @@ if __name__ == "__main__":
     __parser.add_argument('--atlas-registration-label', dest='atlas_registration_label', type=str, required=True, metavar='<name>', help='Name of an anatomical label defined in the reference atlas. The registration will be performed to this label.')
     __parser.add_argument('--moving-data-directory', dest='moving_data_directory', type=str, required=True, metavar='<path>', help='Path to the directory of a moving image.')
     __parser.add_argument('--moving-image', dest='moving_image', type=str, required=True, metavar='<path>', help='Moving image in the directory of the moving image. This image will be registered to the reference atlas.')
-    __parser.add_argument('--run-initialisation', dest='initialisation', action='store_true', help='-- NOT IMPLEMENTED -- Indicates whether to perform a search for an initial transform to align the moving image with the reference atlas beform the actual registration. Note that performing the initialisation might take a considerable amount of time, but should improve the registration results. However, if the moving image is already properly oriented in space, this is generally not necessary.')
+    __parser.add_argument('--transformation-model', dest='transformation_model', default='deformable', choices=['rigid', 'affine', 'deformable'], type=str, required=False, metavar='<name>', help='Type of transformation model to use for the registration. The options \'rigid\', \'affine\', and \'deformable\' employ a multistage transformation with only a rigid, a rigid and affine, and finally a rigid and affine followed by a (deformable) SyN transformation, respectively.')
+    __parser.add_argument('--quick', dest='quick', action='store_true', required=False, help='Indicates whether to perform a quick registration. In this case, other similarity metrics as well as less interations may be used to speed up the registration.')
+    __parser.add_argument('--run-initialisation', dest='initialisation', action='store_true', help='Indicates whether to perform a search for an initial transform to align the moving image with the reference atlas beform the actual registration. Note that performing the initialisation might take a considerable amount of time, but should improve the registration results. However, if the moving image is already properly oriented in space, this is generally not necessary.')
     
     kwargs = vars(__parser.parse_args())
     
