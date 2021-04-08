@@ -621,12 +621,12 @@ def load(path, pixeltype=None):
 
 def save(volume_image, output_path, override=False):
     """
-    Saves a 3-dimensional image raster to file.
+    Saves a volumetric image to file.
 
     Parameters
     ----------
     volume_image: ants.core.ants_image.ANTsImage
-        3-dimensional image raster.
+        Volumetric image.
     output_path : str
         Image output path.
     override : bool
@@ -647,6 +647,55 @@ def save(volume_image, output_path, override=False):
         raise FileExistsError('The file {} does already exist and `override` is set to False.'.format(output_path))
         
     volume_image.to_file(output_path)
+
+def resample(volume_image, spacing, preserve_orientation=True):
+    """
+    ********************************************************************************
+    Saves a 3-dimensional image raster to file.
+
+    Parameters
+    ----------
+    volume_image: ants.core.ants_image.ANTsImage
+        Volumetric image.
+    spacing : (3,) tuple of float or int
+        Spacing to which the volumetric image will be resampled, the pixels along the
+        sagittal, coronal, and transverse anatomical direction (Units: 1µm),
+        respectively.
+    preserve_orientation : bool
+        Preserve the original orientation of the image. Default is True.
+
+    Returns
+    -------
+    _ : ants.core.ants_image.ANTsImage
+        Volumetric image.
+    """
+
+    if not type(volume_image) is ants.core.ants_image.ANTsImage:
+        raise TypeError('`volume_image` is expected to be of type ants.core.ants_image.ANTsImage.')
+
+    if not (type(spacing) in [list, tuple] and len(spacing) == 3 and all([type(_) in [int, float] for _ in spacing])):
+        raise TypeError('`spacing` is expected to be of type tuple with length 3 and with elements of type int or float.')
+
+    if not all([_ > 0 for _ in spacing]):
+        raise ValueError('`spacing` is expected to contain only positive numbers.')
+
+    
+    __REORIENT = False
+    
+    if not volume_image.orientation in ['RAI', 'RAS', 'RPI', 'RPS', 'LAI', 'LAS', 'LPI', 'LPS']:
+        __REORIENT = True
+        __ORIGINAL_ORIENTATION = volume_image.orientation
+        
+        __volume_image = ants.reorient_image2(volume_image, orientation='RAI')
+    else:
+        __volume_image = volume_image.clone()
+    
+    __volume_image = ants.resample_image(__volume_image, spacing, use_voxels=False, interp_type=0)
+    
+    if __REORIENT and preserve_orientation:
+        __volume_image = ants.reorient_image2(__volume_image, orientation=__ORIGINAL_ORIENTATION)
+
+    return __volume_image
 
 def anatomical_orientation_letters():
     """
