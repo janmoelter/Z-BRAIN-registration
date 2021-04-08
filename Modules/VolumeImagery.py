@@ -585,29 +585,37 @@ def interpolate_image_stack(image_stack, stack_spacing, target_spacing):
             
     return __interpolated_image_stack
 
-def load(path, pixeltype='float'):
+def load(path, pixeltype=None):
     """
-    Loads a 3-dimensional image raster.
+    Loads a volumetric image.
 
     Parameters
     ----------
     path : str
         Image path.
     pixeltype : str
-        Pixeltype of the image raster Possible values are 'unsigned char', 'unsigned
-        int', 'float', or 'double'. Default is 'float'.
+        Pixeltype of the image raster. Possible values are 'unsigned char',
+        'unsigned int', 'float', 'double', or None. If None, the pixeltype is
+        inferred from the image. Default is None.
 
     Returns
     -------
     _ : ants.core.ants_image.ANTsImage
-        3-dimensional image raster.
+        Volumetric image.
     """
     
     if not type(path) is str:
         raise TypeError('`path` is expected to be of type str.')
         
+    if not (type(pixeltype) is str or pixeltype is None):
+        raise TypeError('`pixeltype` is expected to be either of type str or None.')
+        
     if not os.path.isfile(path):
         raise FileNotFoundError('The file {} does not exist.'.format(path))
+    
+    #if pixeltype is None:
+    #    __HEADER_INFO = ants.image_header_info(path)
+    #    pixeltype = __HEADER_INFO['__HEADER_INFO']
     
     return ants.image_read(path, pixeltype=pixeltype)
 
