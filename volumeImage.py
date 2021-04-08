@@ -78,6 +78,22 @@ def volume_image_to_image_stack(volume_image, image_order='I', plane_orientation
         for _ in __image_stack:
             tif.write(_, contiguous=True, **kwargs)
 
+def volume_image_resample(volume_image, spacing, output_file='out.nrrd'):
+
+    if not os.path.isfile(volume_image):
+        raise FileNotFoundError('Volume image `{}` cannot be found.'.format(volume_image))
+
+    __volume_image = VolumeImagery.load(volume_image, pixeltype=None)
+    
+    
+    __volume_image = VolumeImagery.resample(__volume_image, spacing=spacing, preserve_orientation=True)
+    
+    
+    if not os.path.splitext(output_file)[1].upper() in ['.NRRD']:
+        output_file += '.nrrd'
+
+    VolumeImagery.save(__volume_image, output_path=output_file)
+
 
 if __name__ == "__main__":
     # ********************************************************************************
@@ -91,7 +107,7 @@ if __name__ == "__main__":
         description='Either builds a volume image from a stack of plane images taken from different planes through the imaging volume or takes a volume image and slices it into a stack of plane images.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    __subparsers = __parser.add_subparsers(title='subcommands',dest='subcommand', required=True, help='Selection of the interface to build a volume image from a stack of plane images and to slice a volume image into a stack of plane images.')
+    __subparsers = __parser.add_subparsers(title='subcommands',dest='subcommand', required=True, help='Selection of the interface to build a volume image from a stack of plane images, to slice a volume image into a stack of plane images, or to resample a volume image.')
 
     __subparser = dict()
     __subparser['from-plane-images'] = __subparsers.add_parser('from-plane-images',
@@ -100,6 +116,10 @@ if __name__ == "__main__":
     )
     __subparser['to-plane-images'] = __subparsers.add_parser('to-plane-images',
         description='Slices a volume image into a stack of plane images.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    __subparser['resample'] = __subparsers.add_parser('resample',
+        description='Resamples a volume image.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -120,8 +140,15 @@ if __name__ == "__main__":
     __subparser['to-plane-images'].add_argument('--plane-image-order', dest='image_order', default='I', choices=['R', 'L', 'A', 'P', 'I', 'S'], type=str, required=True, metavar='<order>', help='Order of the imaging planes in terms of the anatomical direction of the image stack. Note that this direction specifies the origin rather than the target. Hence, if the imaging planes are to be ordered from inferior to superior, the order is \'I\'.')
     __subparser['to-plane-images'].add_argument('--plane-orientation', dest='plane_orientation', nargs=2, default=['A', 'L'], choices=['R', 'L', 'A', 'P', 'I', 'S'], type=str, required=True, metavar='<orientation>', help='Orientation of the imaging planes in terms of the anatomical directions of the first (vertical) and the second (horizontal) axis. Note that an image\'s origin is in the upper left corner and that these directions specify the origins rather than the targets. Hence, if the axes go from anterior to posterior and left to right, their orientation will be \'A\' and \'L\', respectively.')
     __subparser['to-plane-images'].add_argument('--output-file', dest='output_file', type=str, required=True, metavar='<path>', help='Path for the output file. If the file does already exist, it will not be overwritten and rather an error thrown.')
-
-
+    
+    # *** 'resample' ***
+    
+    __subparser['resample'].add_argument('--volume-image', dest='volume_image', type=str, required=True, metavar='<file name>', help='Volume image.')
+    __subparser['resample'].add_argument('--spacing', dest='spacing', nargs=3, default=[1., 1., 1.], type=float, required=True, metavar='<spacing>', help='Spacing of the volume image in the sagittal, coronal, and transverse anatomical direction.')
+    __subparser['resample'].add_argument('--output-file', dest='output_file', type=str, required=True, metavar='<path>', help='Path for the output file. If the file does already exist, it will not be overwritten and rather an error thrown.')
+    
+    
+    
     kwargs = vars(__parser.parse_args())
     
     # ********************************************************************************
@@ -140,6 +167,9 @@ if __name__ == "__main__":
 
     if __parser_subcommand == 'to-plane-images':
         pass
+    
+    if __parser_subcommand == 'resample':
+        pass
 
     # ********************************************************************************
     # Execute main function
@@ -149,6 +179,8 @@ if __name__ == "__main__":
             volume_image_from_image_stack(**kwargs)
         elif __parser_subcommand == 'to-plane-images':
             volume_image_to_image_stack(**kwargs)
+        elif __parser_subcommand == 'resample':
+            volume_image_resample(**kwargs)
             
     except:
         print('', file=sys.stdout)
