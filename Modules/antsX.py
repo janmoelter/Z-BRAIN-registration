@@ -42,6 +42,7 @@ def header_info(image):
         
     __header_info = dict()
     
+    __header_info['pixeltype'] = image.pixeltype
     __header_info['dimensions'] = image.shape
     __header_info['spacing'] = image.spacing
     __header_info['origin'] = image.origin
