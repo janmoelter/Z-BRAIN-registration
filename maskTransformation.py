@@ -58,7 +58,7 @@ def mask_transformation(reference_atlas_directory, atlas_masks, moving_data_dire
             'fixed': __moving_image,
             'moving': __reference_atlas.masks[maskname].astype('float32'),
             'transformlist': os.path.join(moving_data_directory, 'registration/transformation_InverseComposite.h5'),
-            'interpolator': 'genericLabel'
+            'interpolator': 'multiLabel'
         }
 
         if verbose is not None and verbose:
