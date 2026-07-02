@@ -38,7 +38,8 @@ In the following, we will briefly describe the main steps of our pipeline. While
 
 2. If the neuroimaging dataset consists of summary images for the individual imaging planes, we need to combine those into a volume image (the "moving image").
 
-   ![](README/volumeImageCreation-schematic.png)
+   ![](README/volumeImageCreation-schematic.light.png#gh-light-mode-only)
+   ![](README/volumeImageCreation-schematic.dark.png#gh-dark-mode-only)
 
    ```
    python volumeImage.py from-plane-images --plane-images Data/<imaging dataset>/*.tif --plane-image-order S --plane-orientation P R --plane-spacing 0.2426 0.2426 --plane-height 7.5 --output-file Data/<imaging dataset>/<imaging dataset>.nrrd
@@ -48,7 +49,8 @@ In the following, we will briefly describe the main steps of our pipeline. While
 
 3. Given the reference atlas created above and the moving image, we can perform the registration. For the registration, we use the SynQuick['s'] transformation (Favre-Bulle et al., 2018).
 
-   ![](README/imageRegistration-schematic.png)
+   ![](README/imageRegistration-schematic.light.png#gh-light-mode-only)
+   ![](README/imageRegistration-schematic.dark.png#gh-dark-mode-only)
 
    ```
    python imageRegistration.py --reference-atlas-directory Data/Atlases/Z-BRAIN\ 2x2x2 --atlas-registration-label Elavl3-H2BRFP --moving-data-directory Data/<imaging dataset> --moving-image <imaging dataset>.nrrd
@@ -58,7 +60,8 @@ In the following, we will briefly describe the main steps of our pipeline. While
 
 4. Following the registration, we can use the inverse transformation to map the brain regions defined in the reference atlas back onto the moving image.
 
-   ![](README/maskTransformation-schematic.png)
+   ![](README/maskTransformation-schematic.light.png#gh-light-mode-only)
+   ![](README/maskTransformation-schematic.dark.png#gh-dark-mode-only)
 
    ```
    python maskTransformation.py --reference-atlas-directory Data/Atlases/Z-BRAIN\ 2x2x2 --moving-data-directory Data/<imaging dataset> --moving-image <imaging dataset>.nrrd
